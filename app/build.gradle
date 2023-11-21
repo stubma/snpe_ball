@@ -38,11 +38,6 @@ android {
             path "src/main/jni/CMakeLists.txt"
         }
     }
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['libs']
-        }
-    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -55,24 +50,6 @@ android {
     }
     composeOptions {
         kotlinCompilerExtensionVersion '1.3.2'
-    }
-    packagingOptions {
-        resources {
-            excludes += '/META-INF/{AL2.0,LGPL2.1}'
-        }
-        pickFirst 'lib/arm64-v8a/libc++_shared.so'
-        pickFirst 'lib/arm64-v8a/libSNPE.so'
-        pickFirst 'lib/arm64-v8a/libSnpeHtpV73Skel.so'
-        pickFirst 'lib/arm64-v8a/libSnpeHtpV73tub.so '
-        pickFirst 'lib/arm64-v8a/libSnpeHtpV69Skel.so'
-        pickFirst 'lib/arm64-v8a/libSnpeHtpV69tub.so '
-        pickFirst 'lib/arm64-v8a/libSnpeHtpV68Skel.so'
-        pickFirst 'lib/arm64-v8a/libSnpeHtpV68tub.so '
-        pickFirst 'lib/arm64-v8a/libSnpeDspV66Skel.so'
-        pickFirst 'lib/arm64-v8a/libSnpeDspV66Stub.so '
-        pickFirst 'lib/arm64-v8a/libSnpeDspV65Skel.so'
-        pickFirst 'lib/arm64-v8a/libSnpeDspV65Stub.so '
-        pickFirst 'lib/arm64-v8a/libSnpeHtpPrepare.so '
     }
 }
 

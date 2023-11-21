@@ -17,7 +17,7 @@ add_library(${PROJECT_NAME} SHARED ${SRCS})
 find_library(log-lib log)
 
 # imported library
-set(IMPORT_DIR ${CMAKE_SOURCE_DIR}/../../../libs)
+set(IMPORT_DIR ${CMAKE_SOURCE_DIR}/../jniLibs)
 add_library(libc++_shared SHARED IMPORTED)
 add_library(libSNPE SHARED IMPORTED)
 set_target_properties(libc++_shared PROPERTIES IMPORTED_LOCATION ${IMPORT_DIR}/${ANDROID_ABI}/libc++_shared.so)

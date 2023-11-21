@@ -69,7 +69,6 @@ Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
 
 __attribute__ ((visibility ("default"))) jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     _vm = vm;
-    setenv("LD_LIBRARY_PATH", "/data/local/tmp/snpe/lib", 1);
-    setenv("ADSP_LIBRARY_PATH", "/data/local/tmp/snpe/lib", 1);
+    setenv("LD_LIBRARY_PATH", "/vendor/lib64", 1);
     return JNI_VERSION_1_6;
 }
