@@ -11,7 +11,8 @@ PROJECT(hexagon)
 aux_source_directory(./ SRCS)
 
 # source files
-add_library(${PROJECT_NAME} SHARED ${SRCS})
+add_executable(${PROJECT_NAME} ${SRCS})
+
 
 # libraries we need
 find_library(log-lib log)

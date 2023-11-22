@@ -15,10 +15,6 @@ import com.example.hexagon_test.ui.theme.Hexagon_testTheme
 class MainActivity : ComponentActivity() {
     companion object {
         init {
-//            System.loadLibrary("OpenCL")
-//            System.loadLibrary("OpenCL_system")
-//            System.loadLibrary("cutils")
-//            System.loadLibrary("vndksupport")
             System.loadLibrary("hexagon")
         }
     }
