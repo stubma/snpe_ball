@@ -16,36 +16,29 @@
 #include "CreateUserBuffer.hpp"
 #include "LoadInputTensor.hpp"
 #include "SaveOutputTensor.hpp"
-
-using namespace DlSystem;
-using namespace DlContainer;
-
-// java vm
-static JavaVM *_vm;
+#include "Wrapper.hpp"
 
 // constant
-//static std::string DIR = "/data/local/tmp/ball";
-//static std::string CONTAINER_PATH = DIR + "/model3_1600_480_20230926_hp.dlc";
-static std::string DIR = "/data/local/tmp/inception_v3";
-static std::string CONTAINER_PATH = DIR + "/inception_v3.dlc";
+static std::string DIR = "/data/local/tmp/ball";
+static std::string CONTAINER_PATH = DIR + "/model3_1600_480_20230926_hp.dlc";
 static std::string INPUT_FILE_PATH = DIR + "/target_raw_list.txt";
 static std::string OUTPUT_DIR = DIR + "/output";
 
-Runtime_t checkRuntime() {
-    Version_t Version = SNPE::SNPEFactory::getLibraryVersion();
-    Runtime_t Runtime;
+DlSystem::Runtime_t checkRuntime() {
+    DlSystem::Version_t Version = SNPE::SNPEFactory::getLibraryVersion();
+    DlSystem::Runtime_t Runtime;
     ALOGD("Qualcomm (R) Neural Processing SDK Version: %s\n",
           Version.asString().c_str()); //Print Version number
-    if (SNPE::SNPEFactory::isRuntimeAvailable(Runtime_t::DSP)) {
-        Runtime = Runtime_t::DSP;
-    } else if (SNPE::SNPEFactory::isRuntimeAvailable(Runtime_t::GPU)) {
-        Runtime = Runtime_t::GPU;
-    } else if (SNPE::SNPEFactory::isRuntimeAvailable(Runtime_t::GPU_FLOAT16)) {
-        Runtime = Runtime_t::GPU;
-    } else if (SNPE::SNPEFactory::isRuntimeAvailable(Runtime_t::CPU)) {
-        Runtime = Runtime_t::CPU;
+    if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::DSP)) {
+        Runtime = DlSystem::Runtime_t::DSP;
+    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::GPU)) {
+        Runtime = DlSystem::Runtime_t::GPU;
+    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::GPU_FLOAT16)) {
+        Runtime = DlSystem::Runtime_t::GPU;
+    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::CPU)) {
+        Runtime = DlSystem::Runtime_t::CPU;
     } else {
-        Runtime = Runtime_t::UNSET;
+        Runtime = DlSystem::Runtime_t::UNSET;
     }
     return Runtime;
 }
@@ -53,13 +46,13 @@ Runtime_t checkRuntime() {
 extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
-    Runtime_t rt = checkRuntime();
+    DlSystem::Runtime_t rt = checkRuntime();
     switch (rt) {
-        case Runtime_t::GPU:
+        case DlSystem::Runtime_t::GPU:
             return env->NewStringUTF("GPU");
-        case Runtime_t::CPU:
+        case DlSystem::Runtime_t::CPU:
             return env->NewStringUTF("CPU");
-        case Runtime_t::DSP:
+        case DlSystem::Runtime_t::DSP:
             return env->NewStringUTF("DSP");
         default:
             return env->NewStringUTF("Unsupported");
@@ -68,15 +61,15 @@ Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
 
 int main(int argc, char *argv[]) {
     // print available runtime
-    Runtime_t runtime = checkRuntime();
+    DlSystem::Runtime_t runtime = checkRuntime();
     switch (runtime) {
-        case Runtime_t::GPU:
+        case DlSystem::Runtime_t::GPU:
             printf("Available runtime: GPU\n");
             break;
-        case Runtime_t::CPU:
+        case DlSystem::Runtime_t::CPU:
             printf("Available runtime: CPU\n");
             break;
-        case Runtime_t::DSP:
+        case DlSystem::Runtime_t::DSP:
             printf("Available runtime: DSP\n");
             break;
         default:
@@ -85,7 +78,7 @@ int main(int argc, char *argv[]) {
     }
 
     // load container
-    std::unique_ptr<IDlContainer> container = loadContainerFromFile(CONTAINER_PATH);
+    std::unique_ptr<DlContainer::IDlContainer> container = loadContainerFromFile(CONTAINER_PATH);
     if (container == nullptr) {
         printf("failed to load container, can not proceed\n");
         return EXIT_FAILURE;
@@ -103,9 +96,9 @@ int main(int argc, char *argv[]) {
     int userBufferSourceType = CPUBUFFER;
     int bufferType = ITENSOR;
     int bitWidth = 0;
-    RuntimeList runtimeList;
+    DlSystem::RuntimeList runtimeList;
     runtimeList.add(runtime);
-    PlatformConfig platformConfig;
+    DlSystem::PlatformConfig platformConfig;
     bool usingInitCaching = false;
     bool staticQuantization = false;
     bool useUserSuppliedBuffers = (bufferType == USERBUFFER_FLOAT ||
@@ -132,7 +125,7 @@ int main(int argc, char *argv[]) {
     // Check the batch size for the container
     // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
     // is the batch size.
-    TensorShape tensorShape;
+    DlSystem::TensorShape tensorShape;
     tensorShape = snpe->getInputDimensions();
     size_t batchSize = tensorShape.getDimensions()[0];
     printf("Batch size for the container is %ld\n", batchSize);
@@ -149,8 +142,8 @@ int main(int argc, char *argv[]) {
         // user-backed storage. These SNPE buffers are then supplied to the network
         // and the results are stored in user-backed output buffers. This allows for
         // reusing the same buffers for multiple inputs and outputs.
-        UserBufferMap inputMap, outputMap;
-        std::vector<std::unique_ptr<IUserBuffer>> snpeUserBackedInputBuffers, snpeUserBackedOutputBuffers;
+        DlSystem::UserBufferMap inputMap, outputMap;
+        std::vector<std::unique_ptr<DlSystem::IUserBuffer>> snpeUserBackedInputBuffers, snpeUserBackedOutputBuffers;
         std::unordered_map<std::string, std::vector<uint8_t>> applicationOutputBuffers;
 
         if (bufferType == USERBUFFER_TF8 || bufferType == USERBUFFER_TF16) {
