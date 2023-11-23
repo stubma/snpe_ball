@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
         CPUBUFFER, GLBUFFER
     };
     int userBufferSourceType = CPUBUFFER;
-    int bufferType = USERBUFFER_FLOAT;
+    int bufferType = ITENSOR;
     int bitWidth = 0;
     RuntimeList runtimeList;
     runtimeList.add(runtime);
@@ -178,7 +178,6 @@ int main(int argc, char *argv[]) {
                                     batchSize, true, bitWidth)) {
                         return EXIT_FAILURE;
                     }
-
                 } else {
                     std::cerr << "Error while executing the network." << std::endl;
                 }
@@ -216,7 +215,7 @@ int main(int argc, char *argv[]) {
         }
     } else if (bufferType == ITENSOR) {
         // A tensor map for SNPE execution outputs
-        zdl::DlSystem::TensorMap outputTensorMap;
+        DlSystem::TensorMap outputTensorMap;
         //Get input names and number
         const auto &inputTensorNamesRef = snpe->getInputTensorNames();
         if (!inputTensorNamesRef) throw std::runtime_error("Error obtaining Input tensor names");
@@ -225,11 +224,9 @@ int main(int argc, char *argv[]) {
         bool execStatus = false;
         for (size_t i = 0; i < inputs.size(); i++) {
             // Load input/output buffers with ITensor
-            if (batchSize > 1)
-                std::cout << "Batch " << i << ":" << std::endl;
             if (inputTensorNames.size() == 1) {
                 // Load input/output buffers with ITensor
-                std::unique_ptr<zdl::DlSystem::ITensor> inputTensor = loadInputTensor(snpe,
+                std::unique_ptr<DlSystem::ITensor> inputTensor = loadInputTensor(snpe,
                                                                                       inputs[i],
                                                                                       inputTensorNames);
                 if (!inputTensor) {
@@ -238,9 +235,9 @@ int main(int argc, char *argv[]) {
                 // Execute the input tensor on the model with SNPE
                 execStatus = snpe->execute(inputTensor.get(), outputTensorMap);
             } else {
-                std::vector<std::unique_ptr<zdl::DlSystem::ITensor>> inputTensors(
+                std::vector<std::unique_ptr<DlSystem::ITensor>> inputTensors(
                         inputTensorNames.size());
-                zdl::DlSystem::TensorMap inputTensorMap;
+                DlSystem::TensorMap inputTensorMap;
                 bool inputLoadStatus = false;
                 // Load input/output buffers with TensorMap
                 std::tie(inputTensorMap, inputLoadStatus) = loadMultipleInput(snpe, inputs[i],
