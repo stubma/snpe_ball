@@ -12,17 +12,23 @@
 #include "ITensorFactory.hpp"
 #include "TensorShape.hpp"
 
-
-/* Windows Modification
-add the definitions to build pass
-add enum class: enum class DirMode
-add function: static enum class DirMode : uint32_t;
-add function: DirMode operator|(DirMode lhs, DirMode rhs);
-add function: static bool CreateDir(const std::string& path, DirMode dirmode);
-modified function: bool EnsureDirectory(const std::string& dir);
-*/
-
-static bool CreateDir(const std::string &path, int dirmode);
+static void mkdirs(const char* buf, int dirmode) {
+    char tmp[512];
+    char *p = NULL;
+    size_t len;
+    snprintf(tmp, sizeof(tmp), "%s", buf);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/')
+        tmp[len - 1] = 0;
+    for (p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            mkdir(tmp, dirmode);
+            *p = '/';
+        }
+    }
+    mkdir(tmp, dirmode);
+}
 
 size_t resizable_dim;
 
@@ -61,13 +67,8 @@ bool EnsureDirectory(const std::string &dir) {
 
     // from here, means no file or folder use dir name
     // let's create it as a folder
-    if (CreateDir(dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-        return true;
-    } else {
-        // basically, shouldn't be here, check platform-specific error
-        // ex: permission, resource...etc
-        return false;
-    }
+    mkdirs(dir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    return true;
 }
 
 std::vector<float> loadFloatDataFile(const std::string &inputFile) {
@@ -329,16 +330,4 @@ void setResizableDim(size_t resizableDim) {
 
 size_t getResizableDim() {
     return resizable_dim;
-}
-
-static bool CreateDir(const std::string &path, int dirmode) {
-    struct stat st;
-    // it create a directory successfully or directory exists already, return true.
-    if ((stat(path.c_str(), &st) != 0 && (mkdir(path.c_str(), dirmode) != 0)) ||
-        ((st.st_mode & S_IFDIR) != 0)) {
-        return true;
-    } else {
-        printf("Create %s fail!\n", path.c_str());
-    }
-    return false;
 }

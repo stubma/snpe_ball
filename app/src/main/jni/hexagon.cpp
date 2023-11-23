@@ -29,7 +29,7 @@ static JavaVM *_vm;
 static std::string DIR = "/data/local/tmp/inception_v3";
 static std::string CONTAINER_PATH = DIR + "/inception_v3.dlc";
 static std::string INPUT_FILE_PATH = DIR + "/target_raw_list.txt";
-static std::string OUTPUT_DIR = "./output/";
+static std::string OUTPUT_DIR = DIR + "/output";
 
 Runtime_t checkRuntime() {
     Version_t Version = SNPE::SNPEFactory::getLibraryVersion();
@@ -159,16 +159,13 @@ int main(int argc, char *argv[]) {
             std::unordered_map<std::string, std::vector<uint8_t>> applicationInputBuffers;
             createInputBufferMap(inputMap, applicationInputBuffers, snpeUserBackedInputBuffers,
                                  snpe, true, staticQuantization, bitWidth);
-        } else if (bufferType == USERBUFFER_FLOAT) {
-            std::unordered_map<std::string, std::vector<uint8_t>> applicationInputBuffers;
-            createInputBufferMap(inputMap, applicationInputBuffers, snpeUserBackedInputBuffers,
-                                 snpe, false, false, bitWidth);
 
             for (size_t i = 0; i < inputs.size(); i++) {
                 // Load input user buffer(s) with values from file(s)
                 if (batchSize > 1)
-                    printf("Batch %d\n", i);
-                if (!loadInputUserBufferFloat(applicationInputBuffers, snpe, inputs[i])) {
+                    std::cout << "Batch " << i << ":" << std::endl;
+                if (!loadInputUserBufferTfN(applicationInputBuffers, snpe, inputs[i], inputMap,
+                                            staticQuantization, bitWidth)) {
                     return EXIT_FAILURE;
                 }
 
@@ -176,19 +173,98 @@ int main(int argc, char *argv[]) {
                 bool execStatus = snpe->execute(inputMap, outputMap);
 
                 // Save the execution results only if successful
-                if (execStatus == true) {
+                if (execStatus) {
                     if (!saveOutput(outputMap, applicationOutputBuffers, OUTPUT_DIR, i * batchSize,
-                                    batchSize, false, bitWidth)) {
+                                    batchSize, true, bitWidth)) {
                         return EXIT_FAILURE;
                     }
+
                 } else {
-                    printf("Error while executing the network.\n");
+                    std::cerr << "Error while executing the network." << std::endl;
+                }
+            }
+        } else if (bufferType == USERBUFFER_FLOAT) {
+            createOutputBufferMap(outputMap, applicationOutputBuffers, snpeUserBackedOutputBuffers,
+                                  snpe, false, bitWidth);
+
+            if (userBufferSourceType == CPUBUFFER) {
+                std::unordered_map<std::string, std::vector<uint8_t>> applicationInputBuffers;
+                createInputBufferMap(inputMap, applicationInputBuffers, snpeUserBackedInputBuffers,
+                                     snpe, false, false, bitWidth);
+
+                for (size_t i = 0; i < inputs.size(); i++) {
+                    // Load input user buffer(s) with values from file(s)
+                    if (!loadInputUserBufferFloat(applicationInputBuffers, snpe, inputs[i])) {
+                        return EXIT_FAILURE;
+                    }
+
+                    // Execute the input buffer map on the model with SNPE
+                    bool execStatus = snpe->execute(inputMap, outputMap);
+
+                    // Save the execution results only if successful
+                    if (execStatus) {
+                        if (!saveOutput(outputMap, applicationOutputBuffers, OUTPUT_DIR,
+                                        i * batchSize,
+                                        batchSize, false, bitWidth)) {
+                            return EXIT_FAILURE;
+                        }
+                    } else {
+                        printf("Error while executing the network.\n");
+                    }
                 }
             }
         }
-    } else {
+    } else if (bufferType == ITENSOR) {
+        // A tensor map for SNPE execution outputs
+        zdl::DlSystem::TensorMap outputTensorMap;
+        //Get input names and number
+        const auto &inputTensorNamesRef = snpe->getInputTensorNames();
+        if (!inputTensorNamesRef) throw std::runtime_error("Error obtaining Input tensor names");
+        const auto &inputTensorNames = *inputTensorNamesRef;
 
+        bool execStatus = false;
+        for (size_t i = 0; i < inputs.size(); i++) {
+            // Load input/output buffers with ITensor
+            if (batchSize > 1)
+                std::cout << "Batch " << i << ":" << std::endl;
+            if (inputTensorNames.size() == 1) {
+                // Load input/output buffers with ITensor
+                std::unique_ptr<zdl::DlSystem::ITensor> inputTensor = loadInputTensor(snpe,
+                                                                                      inputs[i],
+                                                                                      inputTensorNames);
+                if (!inputTensor) {
+                    return EXIT_FAILURE;
+                }
+                // Execute the input tensor on the model with SNPE
+                execStatus = snpe->execute(inputTensor.get(), outputTensorMap);
+            } else {
+                std::vector<std::unique_ptr<zdl::DlSystem::ITensor>> inputTensors(
+                        inputTensorNames.size());
+                zdl::DlSystem::TensorMap inputTensorMap;
+                bool inputLoadStatus = false;
+                // Load input/output buffers with TensorMap
+                std::tie(inputTensorMap, inputLoadStatus) = loadMultipleInput(snpe, inputs[i],
+                                                                              inputTensorNames,
+                                                                              inputTensors);
+                if (!inputLoadStatus) {
+                    return EXIT_FAILURE;
+                }
+                // Execute the multiple input tensorMap on the model with SNPE
+                execStatus = snpe->execute(inputTensorMap, outputTensorMap);
+            }
+            // Save the execution results if execution successful
+            if (execStatus) {
+                if (!saveOutput(outputTensorMap, OUTPUT_DIR, i * batchSize, batchSize)) {
+                    return EXIT_FAILURE;
+                }
+            } else {
+                std::cerr << "Error while executing the network." << std::endl;
+            }
+        }
     }
+
+    // Freeing of snpe object
+    snpe.reset();
 
     // ok
     return EXIT_SUCCESS;

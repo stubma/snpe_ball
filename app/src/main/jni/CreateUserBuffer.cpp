@@ -40,7 +40,7 @@ void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
     } else {
         bufferElementSize = sizeof(float);
     }
-    printf("createUserBuffer: bufferElementSize: %ld, bufferShape.rank(): %d\n",
+    printf("createUserBuffer: bufferElementSize: %ld, bufferShape.rank(): %ld\n",
            bufferElementSize, bufferShape.rank());
 
     // Calculate the stride based on buffer strides.
