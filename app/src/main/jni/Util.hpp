@@ -8,6 +8,7 @@
 
 #include "ITensorFactory.hpp"
 #include "TensorShape.hpp"
+#include "IUserBuffer.hpp"
 
 template<typename Container>
 Container &split(Container &result, const typename Container::value_type &s,
@@ -119,3 +120,4 @@ void setResizableDim(size_t resizableDim);
 
 size_t getResizableDim();
 
+std::string elementTypeStr(DlSystem::UserBufferEncoding::ElementType_t t);

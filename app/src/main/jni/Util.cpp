@@ -331,3 +331,38 @@ void setResizableDim(size_t resizableDim) {
 size_t getResizableDim() {
     return resizable_dim;
 }
+
+std::string elementTypeStr(DlSystem::UserBufferEncoding::ElementType_t t) {
+    switch (t) {
+        case DlSystem::UserBufferEncoding::ElementType_t::FLOAT:
+            return "FLOAT";
+        case DlSystem::UserBufferEncoding::ElementType_t::UNSIGNED8BIT:
+            return "UNSIGNED8BIT";
+        case DlSystem::UserBufferEncoding::ElementType_t::FLOAT16:
+            return "FLOAT16";
+        case DlSystem::UserBufferEncoding::ElementType_t::TF8:
+            return "TF8";
+        case DlSystem::UserBufferEncoding::ElementType_t::TF16:
+            return "TF16";
+        case DlSystem::UserBufferEncoding::ElementType_t::INT32:
+            return "INT32";
+        case DlSystem::UserBufferEncoding::ElementType_t::UINT32:
+            return "UINT32";
+        case DlSystem::UserBufferEncoding::ElementType_t::INT8:
+            return "INT8";
+        case DlSystem::UserBufferEncoding::ElementType_t::UINT8:
+            return "UINT8";
+        case DlSystem::UserBufferEncoding::ElementType_t::INT16:
+            return "INT16";
+        case DlSystem::UserBufferEncoding::ElementType_t::UINT16:
+            return "UINT16";
+        case DlSystem::UserBufferEncoding::ElementType_t::BOOL8:
+            return "BOOL8";
+        case DlSystem::UserBufferEncoding::ElementType_t::INT64:
+            return "INT64";
+        case DlSystem::UserBufferEncoding::ElementType_t::UINT64:
+            return "UINT64";
+        default:
+            return "UNKNOWN";
+    }
+}

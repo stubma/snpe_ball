@@ -16,7 +16,7 @@
 #include "CreateUserBuffer.hpp"
 #include "LoadInputTensor.hpp"
 #include "SaveOutputTensor.hpp"
-#include "Wrapper.hpp"
+#include "Util.hpp"
 
 // constant
 static std::string DIR = "/data/local/tmp/ball";
@@ -56,6 +56,67 @@ Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
             return env->NewStringUTF("DSP");
         default:
             return env->NewStringUTF("Unsupported");
+    }
+}
+
+void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
+    DlSystem::TensorShape tensorShape;
+    tensorShape = snpe->getInputDimensions();
+    const size_t* dims = tensorShape.getDimensions();
+    printf("model input dimensions: ");
+    for(int i = 0; i < tensorShape.rank(); i++) {
+        if(i == 0) {
+            *batchSize = dims[i];
+        }
+        printf("%d ", dims[i]);
+    }
+    printf("\n");
+    printf("Batch size for the container is %ld\n", *batchSize);
+
+    // dump input tensors
+    const auto &inputNamesOpt = snpe->getInputTensorNames();
+    if (!inputNamesOpt) throw std::runtime_error("Error obtaining input tensor names");
+    const DlSystem::StringList &inputNames = *inputNamesOpt;
+    for (const char *name: inputNames) {
+        auto attrs = snpe->getInputOutputBufferAttributes(name);
+        if (!attrs)
+            throw std::runtime_error(
+                    std::string("Error obtaining attributes for input tensor ") + name);
+
+        printf("model input tensor(%s) dimensions: ", name);
+        const DlSystem::TensorShape &bufferShape = (*attrs)->getDims();
+        const size_t* dims = bufferShape.getDimensions();
+        for(int i = 0; i < bufferShape.rank(); i++) {
+            if(i == 0) {
+                *batchSize = dims[i];
+            }
+            printf("%d ", dims[i]);
+        }
+        printf(", element size: %lu", (*attrs)->getElementSize());
+        printf(", element type: %s\n", elementTypeStr((*attrs)->getEncodingType()).c_str());
+    }
+
+    // dump output tensors
+    const auto& outputNamesOpt = snpe->getOutputTensorNames();
+    if (!outputNamesOpt) throw std::runtime_error("Error obtaining output tensor names");
+    const DlSystem::StringList &outputNames = *outputNamesOpt;
+    for (const char *name: outputNames) {
+        auto attrs = snpe->getInputOutputBufferAttributes(name);
+        if (!attrs)
+            throw std::runtime_error(
+                    std::string("Error obtaining attributes for output tensor ") + name);
+
+        printf("model output tensor(%s) dimensions: ", name);
+        const DlSystem::TensorShape &bufferShape = (*attrs)->getDims();
+        const size_t* dims = bufferShape.getDimensions();
+        for(int i = 0; i < bufferShape.rank(); i++) {
+            if(i == 0) {
+                *batchSize = dims[i];
+            }
+            printf("%d ", dims[i]);
+        }
+        printf(", element size: %lu", (*attrs)->getElementSize());
+        printf(", element type: %s\n", elementTypeStr((*attrs)->getEncodingType()).c_str());
     }
 }
 
@@ -125,10 +186,9 @@ int main(int argc, char *argv[]) {
     // Check the batch size for the container
     // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
     // is the batch size.
-    DlSystem::TensorShape tensorShape;
-    tensorShape = snpe->getInputDimensions();
-    size_t batchSize = tensorShape.getDimensions()[0];
-    printf("Batch size for the container is %ld\n", batchSize);
+    size_t batchSize = 1;
+    dumpModel(snpe, &batchSize);
+    return 0;
 
     // Open the input file listing and group input files into batches
     std::vector<std::vector<std::string>> inputs = preprocessInput(INPUT_FILE_PATH, batchSize);
