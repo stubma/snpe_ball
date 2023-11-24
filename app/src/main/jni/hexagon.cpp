@@ -188,10 +188,13 @@ int main(int argc, char *argv[]) {
     // is the batch size.
     size_t batchSize = 1;
     dumpModel(snpe, &batchSize);
-    return 0;
 
     // Open the input file listing and group input files into batches
     std::vector<std::vector<std::string>> inputs = preprocessInput(INPUT_FILE_PATH, batchSize);
+
+    // profile
+    std::chrono::milliseconds networkCost = std::chrono::milliseconds(0);
+    size_t frames = 0;
 
     // Load contents of input file batches ino a SNPE tensor or user buffer,
     // user buffer include cpu buffer and OpenGL buffer,
@@ -285,8 +288,14 @@ int main(int argc, char *argv[]) {
                 if (!inputTensor) {
                     return EXIT_FAILURE;
                 }
+
                 // Execute the input tensor on the model with SNPE
+                const auto start = std::chrono::high_resolution_clock::now();
                 execStatus = snpe->execute(inputTensor.get(), outputTensorMap);
+                const auto end = std::chrono::high_resolution_clock::now();
+                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+                networkCost += int_ms;
+                frames += inputs[i].size();
             } else {
                 std::vector<std::unique_ptr<DlSystem::ITensor>> inputTensors(
                         inputTensorNames.size());
@@ -299,8 +308,14 @@ int main(int argc, char *argv[]) {
                 if (!inputLoadStatus) {
                     return EXIT_FAILURE;
                 }
+
                 // Execute the multiple input tensorMap on the model with SNPE
+                const auto start = std::chrono::high_resolution_clock::now();
                 execStatus = snpe->execute(inputTensorMap, outputTensorMap);
+                const auto end = std::chrono::high_resolution_clock::now();
+                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+                networkCost += int_ms;
+                frames += inputs[i].size();
             }
             // Save the execution results if execution successful
             if (execStatus) {
@@ -312,6 +327,10 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+    // dump profile
+    size_t avgFrameMs = networkCost.count() / frames;
+    printf("average frame nn cost: %lu ms\n", avgFrameMs);
 
     // Freeing of snpe object
     snpe.reset();
