@@ -17,6 +17,7 @@
 #include "LoadInputTensor.hpp"
 #include "SaveOutputTensor.hpp"
 #include "Util.hpp"
+#include <getopt.h>
 
 // constant
 static std::string DIR = "/data/local/tmp/ball";
@@ -43,20 +44,24 @@ DlSystem::Runtime_t checkRuntime() {
     return Runtime;
 }
 
-extern "C"
-JNIEXPORT jstring JNICALL
-Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
+std::string getRuntimeStr() {
     DlSystem::Runtime_t rt = checkRuntime();
     switch (rt) {
         case DlSystem::Runtime_t::GPU:
-            return env->NewStringUTF("GPU");
+            return "GPU";
         case DlSystem::Runtime_t::CPU:
-            return env->NewStringUTF("CPU");
+            return "CPU";
         case DlSystem::Runtime_t::DSP:
-            return env->NewStringUTF("DSP");
+            return "DSP";
         default:
-            return env->NewStringUTF("Unsupported");
+            return "Unsupported";
     }
+}
+
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
+    return env->NewStringUTF(getRuntimeStr().c_str());
 }
 
 void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
@@ -120,7 +125,33 @@ void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
     }
 }
 
+static const char short_options[] = "v";
+static const struct option long_options[] = {
+        {"version", no_argument, NULL, 'v'},
+        {0, 0, 0, 0}
+};
+
+void process_opt(int argc, char *argv[]) {
+    for (;;) {
+        int idx;
+        int c;
+        c = getopt_long(argc, argv, short_options, long_options, &idx);
+        if (-1 == c)
+            break;
+        switch (c) {
+            case 'v':
+                printf("hexagon version: 1.0.0, available runtime: %s\n", getRuntimeStr().c_str());
+                exit(EXIT_SUCCESS);
+            default:
+                break;
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
+    // handle arguments
+    process_opt(argc, argv);
+
     // print available runtime
     DlSystem::Runtime_t runtime = checkRuntime();
     switch (runtime) {
