@@ -20,8 +20,8 @@
 #include <getopt.h>
 
 // constant
-std::string DIR = "/data/local/tmp/ball";
-static std::string CONTAINER_PATH = DIR + "/model3_1600_480_20230926_hp.dlc";
+std::string DIR = "/data/local/tmp/ball_v2";
+static std::string CONTAINER_PATH = DIR + "/ballspotting_woGSM_part1.dlc";
 static std::string INPUT_FILE_PATH = DIR + "/target_raw_list.txt";
 static std::string OUTPUT_DIR = DIR + "/output";
 
@@ -361,7 +361,7 @@ int main(int argc, char *argv[]) {
 
     // dump profile
     size_t avgFrameMs = networkCost.count() / frames;
-    printf("average frame nn cost: %lu ms\n", avgFrameMs);
+    printf("total cost: %llu ms, frames: %lu, average frame nn cost: %lu ms\n", networkCost.count(), frames, avgFrameMs);
 
     // Freeing of snpe object
     snpe.reset();
