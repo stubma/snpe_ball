@@ -20,7 +20,7 @@
 #include <getopt.h>
 
 // constant
-static std::string DIR = "/data/local/tmp/ball";
+std::string DIR = "/data/local/tmp/ball";
 static std::string CONTAINER_PATH = DIR + "/model3_1600_480_20230926_hp.dlc";
 static std::string INPUT_FILE_PATH = DIR + "/target_raw_list.txt";
 static std::string OUTPUT_DIR = DIR + "/output";

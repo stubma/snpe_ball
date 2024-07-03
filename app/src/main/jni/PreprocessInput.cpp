@@ -6,6 +6,8 @@
 #include <cstring>
 #include "PreprocessInput.hpp"
 
+extern std::string DIR;
+
 std::vector<std::vector<std::string>> preprocessInput(std::string filePath, size_t batchSize) {
     // Read lines from the input lists file
     // and store the paths to inputs in strings
@@ -15,7 +17,7 @@ std::vector<std::vector<std::string>> preprocessInput(std::string filePath, size
     while (std::getline(inputList, fileLine)) {
         if (!fileLine.empty() && fileLine.back() == '\r') fileLine.pop_back();
         if (fileLine.empty()) continue;
-        lines.push_back(fileLine);
+        lines.push_back(DIR + "/" + fileLine);
         printf("input file line: %s\n", fileLine.c_str());
     }
 
