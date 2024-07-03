@@ -139,9 +139,12 @@ void process_opt(int argc, char *argv[]) {
         if (-1 == c)
             break;
         switch (c) {
-            case 'v':
-                printf("hexagon version: 1.0.0, available runtime: %s\n", getRuntimeStr().c_str());
+            case 'v': {
+                DlSystem::Version_t libVer = SNPE::SNPEFactory::getLibraryVersion();
+                printf("hexagon version: %s, available runtime: %s\n", libVer.toString().c_str(),
+                       getRuntimeStr().c_str());
                 exit(EXIT_SUCCESS);
+            }
             default:
                 break;
         }
