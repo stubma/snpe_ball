@@ -9,10 +9,10 @@ PROJECT(hexagon)
 
 # collect sources
 aux_source_directory(./ SRCS)
+aux_source_directory(./snpe SRCS)
 
 # source files
 add_executable(${PROJECT_NAME} ${SRCS})
-
 
 # libraries we need
 find_library(log-lib log)
@@ -27,6 +27,7 @@ set_target_properties(libSNPE PROPERTIES IMPORTED_LOCATION ${IMPORT_DIR}/${ANDRO
 # include dir
 include_directories(
         .
+        snpe
         include
         include/SNPE
         include/SNPE/DiagLog
