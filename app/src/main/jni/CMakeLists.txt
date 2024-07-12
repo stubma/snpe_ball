@@ -10,6 +10,7 @@ PROJECT(hexagon)
 # collect sources
 aux_source_directory(./ SRCS)
 aux_source_directory(./snpe SRCS)
+aux_source_directory(./media SRCS)
 
 # source files
 add_executable(${PROJECT_NAME} ${SRCS})
@@ -28,6 +29,7 @@ set_target_properties(libSNPE PROPERTIES IMPORTED_LOCATION ${IMPORT_DIR}/${ANDRO
 include_directories(
         .
         snpe
+        media
         include
         include/SNPE
         include/SNPE/DiagLog
