@@ -8,6 +8,5 @@ snpe track ball
 5. 将hexagon push到/data/local/tmp
 6. adb shell到设备里, 设置一下环境变量
 export ADSP_LIBRARY_PATH=/data/local/tmp/snpe/lib
-export LD_LIBRARY_PATH=/data/local/tmp/snpe/lib
 
 7. 执行hexagon即可
