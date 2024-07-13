@@ -13,10 +13,14 @@ aux_source_directory(./snpe SRCS)
 aux_source_directory(./media SRCS)
 
 # source files
-add_executable(${PROJECT_NAME} ${SRCS})
+add_library(${PROJECT_NAME} SHARED ${SRCS})
+
+# if want to build an executable program, use this and comment above add_library
+#add_executable(${PROJECT_NAME} ${SRCS})
 
 # libraries we need
 find_library(log-lib log)
+find_library(media-lib mediandk)
 
 # imported library
 set(IMPORT_DIR ${CMAKE_SOURCE_DIR}/../jniLibs)
@@ -31,6 +35,7 @@ include_directories(
         snpe
         media
         include
+        include/media
         include/SNPE
         include/SNPE/DiagLog
         include/SNPE/DlContainer
@@ -44,6 +49,7 @@ include_directories(
 target_link_libraries(
         ${PROJECT_NAME}
         ${log-lib}
+        ${media-lib}
         libc++_shared
         libSNPE
 )
