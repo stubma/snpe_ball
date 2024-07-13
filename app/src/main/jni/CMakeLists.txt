@@ -19,6 +19,7 @@ aux_source_directory(./media SRCS)
 
 # if want to build an executable program, use this and comment above add_library
 add_executable(${PROJECT_NAME} ${SRCS})
+add_definitions(-DSTANDALONE)
 
 # libraries we need
 find_library(log-lib log)

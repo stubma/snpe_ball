@@ -5,7 +5,7 @@
 #include "SNPE.hpp"
 #include "SNPEFactory.hpp"
 #include "log.h"
-#include <string>
+#include "codec_api.h"
 
 static const char short_options[] = "v";
 static const struct option long_options[] = {
@@ -48,7 +48,13 @@ std::string getRuntimeStr() {
     }
 }
 
-void process_opt(int argc, char *argv[]) {
+static void print_version() {
+    DlSystem::Version_t libVer = SNPE::SNPEFactory::getLibraryVersion();
+    printf("hexagon version: %s, available runtime: %s\n", libVer.toString().c_str(),
+           getRuntimeStr().c_str());
+}
+
+static void process_opt(int argc, char *argv[]) {
     for (;;) {
         int idx;
         int c;
@@ -56,12 +62,9 @@ void process_opt(int argc, char *argv[]) {
         if (-1 == c)
             break;
         switch (c) {
-            case 'v': {
-                DlSystem::Version_t libVer = SNPE::SNPEFactory::getLibraryVersion();
-                printf("hexagon version: %s, available runtime: %s\n", libVer.toString().c_str(),
-                       getRuntimeStr().c_str());
+            case 'v':
+                print_version();
                 exit(EXIT_SUCCESS);
-            }
             default:
                 break;
         }
@@ -72,8 +75,12 @@ int main(int argc, char *argv[]) {
     // handle arguments
     process_opt(argc, argv);
 
-    // run dlc model
-    run_dlc();
+    decode_video(
+            "/data/local/tmp/MediaBenchmark/res/",
+            "rewoo_full.mp4",
+            "/data/local/tmp/decoder.stat",
+            "c2.qti.avc.decoder",
+            false);
 
     // ok
     return EXIT_SUCCESS;

@@ -16,12 +16,21 @@
 #endif
 
 #ifdef LOG_TAG
-# define ALOGV(...) __logv(LOG_TAG, __VA_ARGS__)
-# define ALOGD(...) __logd(LOG_TAG, __VA_ARGS__)
-# define ALOGI(...) __logi(LOG_TAG, __VA_ARGS__)
-# define ALOGW(...) __logw(LOG_TAG, __VA_ARGS__)
-# define ALOGE(...) __loge(LOG_TAG, __VA_ARGS__)
-# define ALOGF(...) __logf(LOG_TAG, __VA_ARGS__)
+    #ifdef STANDALONE
+    #define ALOGV(...) do { printf(__VA_ARGS__); printf("\n"); } while(false)
+    #define ALOGD(...) do { printf(__VA_ARGS__); printf("\n"); } while(false)
+    #define ALOGI(...) do { printf(__VA_ARGS__); printf("\n"); } while(false)
+    #define ALOGW(...) do { printf(__VA_ARGS__); printf("\n"); } while(false)
+    #define ALOGE(...) do { printf(__VA_ARGS__); printf("\n"); } while(false)
+    #define ALOGF(...) do { printf(__VA_ARGS__); printf("\n"); } while(false)
+    #else
+    #define ALOGV(...) __logv(LOG_TAG, __VA_ARGS__)
+    #define ALOGD(...) __logd(LOG_TAG, __VA_ARGS__)
+    #define ALOGI(...) __logi(LOG_TAG, __VA_ARGS__)
+    #define ALOGW(...) __logw(LOG_TAG, __VA_ARGS__)
+    #define ALOGE(...) __loge(LOG_TAG, __VA_ARGS__)
+    #define ALOGF(...) __logf(LOG_TAG, __VA_ARGS__)
+    #endif
 #else
 # define ALOGV(...) ((void)0)
 # define ALOGD(...) ((void)0)
