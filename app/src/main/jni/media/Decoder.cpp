@@ -193,7 +193,7 @@ int32_t Decoder::decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &fra
             if (outIdx == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
                 mFormat = AMediaCodec_getOutputFormat(mCodec);
                 const char *s = AMediaFormat_toString(mFormat);
-                ALOGI("Output format: %s\n", s);
+//                ALOGI("Output format: %s\n", s);
             } else if (outIdx >= 0) {
                 mStats->addOutputTime();
                 onOutputAvailable(mCodec, outIdx, &info);

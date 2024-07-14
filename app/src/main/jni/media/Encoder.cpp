@@ -216,7 +216,7 @@ int32_t Encoder::encode(string &codecName, ifstream &eleStream, size_t eleSize, 
         AMediaFormat_setInt32(mFormat, AMEDIAFORMAT_KEY_BIT_RATE, mParams.bitrate);
     }
     const char *s = AMediaFormat_toString(mFormat);
-    ALOGI("Input format: %s\n", s);
+//    ALOGI("Input format: %s\n", s);
 
     int64_t sTime = mStats->getCurTime();
     mCodec = createMediaCodec(mFormat, mMime, codecName, true /*isEncoder*/);
@@ -274,7 +274,7 @@ int32_t Encoder::encode(string &codecName, ifstream &eleStream, size_t eleSize, 
             if (outIdx == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
                 mFormat = AMediaCodec_getOutputFormat(mCodec);
                 const char *s = AMediaFormat_toString(mFormat);
-                ALOGI("Output format: %s\n", s);
+//                ALOGI("Output format: %s\n", s);
             } else if (outIdx >= 0) {
                 mStats->addOutputTime();
                 onOutputAvailable(mCodec, outIdx, &info);

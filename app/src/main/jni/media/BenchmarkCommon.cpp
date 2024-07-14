@@ -91,7 +91,7 @@ AMediaCodec *createMediaCodec(AMediaFormat *format, const char *mime, string cod
 
     /* Configure codec with the given format*/
     const char *s = AMediaFormat_toString(format);
-    ALOGI("Input format: %s\n", s);
+//    ALOGI("Input format: %s\n", s);
 
     media_status_t status = AMediaCodec_configure(codec, format, nullptr, nullptr, isEncoder);
     if (status != AMEDIA_OK) {
