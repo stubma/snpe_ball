@@ -84,7 +84,6 @@ int decode_video(std::string file_path, std::string file_name, std::string stat_
         uint32_t inputBufferOffset = 0;
 
         // Get frame data
-        nsecs_t start = systemTime();
         while (1) {
             status = extractor->getFrameSample(info);
             if (status || !info.size) break;
@@ -98,9 +97,7 @@ int decode_video(std::string file_path, std::string file_name, std::string stat_
             frameInfo.push_back(info);
             inputBufferOffset += info.size;
         }
-        nsecs_t end = systemTime();
-        nsecs_t fillSampleTime = end - start;
-        start = end;
+        nsecs_t start = systemTime();
 
         decoder->setupDecoder();
         ALOGD("native decoder setup: codec: %s, input buffer size: %u, frame count: %zu",
@@ -112,12 +109,10 @@ int decode_video(std::string file_path, std::string file_name, std::string stat_
             return -1;
         }
 
-        end = systemTime();
+        nsecs_t end = systemTime();
         nsecs_t decodeTime = end - start;
-        ALOGD("frame count: %zu, fill cost: %ldms(average: %ldms), decode cost: %ldms(average: %ldms)",
+        ALOGD("frame count: %zu, decode cost: %ldms(average: %ldms)",
               frameInfo.size(),
-              nanoseconds_to_milliseconds(fillSampleTime),
-              nanoseconds_to_milliseconds(fillSampleTime / frameInfo.size()),
               nanoseconds_to_milliseconds(decodeTime),
               nanoseconds_to_milliseconds(decodeTime / frameInfo.size()));
 
