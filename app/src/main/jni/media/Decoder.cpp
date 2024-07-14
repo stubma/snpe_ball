@@ -24,7 +24,6 @@
 tuple<ssize_t, uint32_t, int64_t> readSampleData(uint8_t *inputBuffer, int32_t &offset,
                                                  vector<AMediaCodecBufferInfo> &frameInfo,
                                                  uint8_t *buf, int32_t frameID, size_t bufSize) {
-    ALOGV("In %s", __func__);
     if (frameID == (int32_t)frameInfo.size()) {
         return make_tuple(0, AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM, 0);
     }
@@ -42,7 +41,6 @@ tuple<ssize_t, uint32_t, int64_t> readSampleData(uint8_t *inputBuffer, int32_t &
 }
 
 void Decoder::onInputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx) {
-    ALOGV("In %s", __func__);
     if (mediaCodec == mCodec && mediaCodec) {
         if (mSawInputEOS || bufIdx < 0) return;
         if (mSignalledError) {
@@ -73,8 +71,8 @@ void Decoder::onInputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx) {
         }
 
         if (flag == AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) mSawInputEOS = true;
-        ALOGV("%s bytesRead : %zd presentationTimeUs : %" PRId64 " mSawInputEOS : %s", __FUNCTION__,
-              bytesRead, presentationTimeUs, mSawInputEOS ? "TRUE" : "FALSE");
+//        ALOGV("%s bytesRead : %zd presentationTimeUs : %" PRId64 " mSawInputEOS : %s", __FUNCTION__,
+//              bytesRead, presentationTimeUs, mSawInputEOS ? "TRUE" : "FALSE");
 
         media_status_t status = AMediaCodec_queueInputBuffer(mCodec, bufIdx, 0 /* offset */,
                                                              bytesRead, presentationTimeUs, flag);
@@ -91,7 +89,6 @@ void Decoder::onInputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx) {
 
 void Decoder::onOutputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx,
                                 AMediaCodecBufferInfo *bufferInfo) {
-    ALOGV("In %s", __func__);
     if (mediaCodec == mCodec && mediaCodec) {
         if (mSawOutputEOS || bufIdx < 0) return;
         if (mSignalledError) {
@@ -112,8 +109,8 @@ void Decoder::onOutputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx,
         AMediaCodec_releaseOutputBuffer(mCodec, bufIdx, false);
         mSawOutputEOS = (0 != (bufferInfo->flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM));
         mNumOutputFrame++;
-        ALOGV("%s index : %d  mSawOutputEOS : %s count : %u", __FUNCTION__, bufIdx,
-              mSawOutputEOS ? "TRUE" : "FALSE", mNumOutputFrame);
+//        ALOGV("%s index : %d  mSawOutputEOS : %s count : %u", __FUNCTION__, bufIdx,
+//              mSawOutputEOS ? "TRUE" : "FALSE", mNumOutputFrame);
 
         if (mSawOutputEOS) {
             CallBackHandle::mIsDone = true;
@@ -123,7 +120,6 @@ void Decoder::onOutputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx,
 }
 
 void Decoder::onFormatChanged(AMediaCodec *mediaCodec, AMediaFormat *format) {
-    ALOGV("In %s", __func__);
     if (mediaCodec == mCodec && mediaCodec) {
         ALOGV("%s { %s }", __FUNCTION__, AMediaFormat_toString(format));
         mFormat = format;
@@ -131,7 +127,6 @@ void Decoder::onFormatChanged(AMediaCodec *mediaCodec, AMediaFormat *format) {
 }
 
 void Decoder::onError(AMediaCodec *mediaCodec, media_status_t err) {
-    ALOGV("In %s", __func__);
     if (mediaCodec == mCodec && mediaCodec) {
         ALOGE("Received Error %d", err);
         mErrorCode = err;
@@ -145,13 +140,11 @@ void Decoder::setupDecoder() {
 }
 
 AMediaFormat *Decoder::getFormat() {
-    ALOGV("In %s", __func__);
     return AMediaCodec_getOutputFormat(mCodec);
 }
 
 int32_t Decoder::decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &frameInfo,
                         string &codecName, bool asyncMode, FILE *outFp) {
-    ALOGV("In %s", __func__);
     mInputBuffer = inputBuffer;
     mFrameMetaData = frameInfo;
     mOffset = 0;

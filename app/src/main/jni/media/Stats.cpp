@@ -37,7 +37,6 @@
  */
 void Stats::dumpStatistics(string operation, string inputReference, int64_t durationUs,
                            string componentName, string mode, string statsFile) {
-    ALOGV("In %s", __func__);
     if (!mOutputTimer.size()) {
         ALOGE("No output produced");
         return;

@@ -65,7 +65,6 @@ void OnErrorCB(AMediaCodec *codec, void *userdata, media_status_t err, int32_t a
 
 AMediaCodec *createMediaCodec(AMediaFormat *format, const char *mime, string codecName,
                               bool isEncoder) {
-    ALOGV("In %s", __func__);
     if (!mime) {
         ALOGE("Please specify a mime type to create codec");
         return nullptr;
