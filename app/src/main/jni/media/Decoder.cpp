@@ -21,7 +21,6 @@
 
 #include "Decoder.h"
 #include "stdio.h"
-#include "utils.h"
 
 tuple<ssize_t, uint32_t, int64_t> readSampleData(uint8_t *inputBuffer, int32_t &offset,
                                                  vector<AMediaCodecBufferInfo> &frameInfo,
@@ -86,6 +85,11 @@ void Decoder::onInputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx) {
         }
         mStats->addFrameSize(bytesRead);
         mNumInputFrame++;
+
+        // forward
+        if(_cb && _cb->onInputAvailable) {
+            _cb->onInputAvailable(mediaCodec, this, bufIdx);
+        }
     }
 }
 
@@ -99,26 +103,17 @@ void Decoder::onOutputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx,
             return;
         }
 
-        if (!_outDir.empty()) {
-            size_t bufSize;
-            uint8_t *buf = AMediaCodec_getOutputBuffer(mCodec, bufIdx, &bufSize);
-            if (buf && bufferInfo->size > 0) {
-                char path[512] = {0};
-                _outIdx++;
-                sprintf(path, "%s/frame_%d.yuv", _outDir.c_str(), _outIdx);
-                FILE* fp = fopen(path, "w+");
-                fwrite(buf, sizeof(char), bufferInfo->size, fp);
-                fflush(fp);
-                fclose(fp);
-                ALOGV("bytes(%d) written into file %s\n", bufferInfo->size, path);
-            }
-        }
-
-        AMediaCodec_releaseOutputBuffer(mCodec, bufIdx, false);
         mSawOutputEOS = (0 != (bufferInfo->flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM));
         mNumOutputFrame++;
 //        ALOGV("%s index : %d  mSawOutputEOS : %s count : %u", __FUNCTION__, bufIdx,
 //              mSawOutputEOS ? "TRUE" : "FALSE", mNumOutputFrame);
+
+        // forward
+        if(_cb && _cb->onOutputAvailable) {
+            _cb->onOutputAvailable(mediaCodec, this, bufIdx, bufferInfo);
+        }
+
+        AMediaCodec_releaseOutputBuffer(mCodec, bufIdx, false);
 
         if (mSawOutputEOS) {
             CallBackHandle::mIsDone = true;
@@ -131,6 +126,11 @@ void Decoder::onFormatChanged(AMediaCodec *mediaCodec, AMediaFormat *format) {
     if (mediaCodec == mCodec && mediaCodec) {
         ALOGV("%s { %s }", __FUNCTION__, AMediaFormat_toString(format));
         mFormat = format;
+
+        // forward
+        if(_cb && _cb->onFormatChanged) {
+            _cb->onFormatChanged(mediaCodec, this, format);
+        }
     }
 }
 
@@ -140,6 +140,11 @@ void Decoder::onError(AMediaCodec *mediaCodec, media_status_t err) {
         mErrorCode = err;
         mSignalledError = true;
         mDecoderDoneCondition.notify_one();
+
+        // forward
+        if(_cb && _cb->onError) {
+            _cb->onError(mediaCodec, this, err, 0, nullptr);
+        }
     }
 }
 
@@ -152,15 +157,11 @@ AMediaFormat *Decoder::getFormat() {
 }
 
 int32_t Decoder::decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &frameInfo,
-                        string &codecName, bool asyncMode, std::string outDir) {
+                        string &codecName, bool asyncMode) {
     mInputBuffer = inputBuffer;
     mFrameMetaData = frameInfo;
     mOffset = 0;
-    _outDir = outDir;
-    _outIdx = 0;
-    if(!outDir.empty() && !is_directory(outDir)) {
-        mkdirs(outDir.c_str());
-    }
+    mNumOutputFrame = 0;
 
     const char *mime = nullptr;
     AMediaFormat_getString(mFormat, AMEDIAFORMAT_KEY_MIME, &mime);
@@ -192,6 +193,7 @@ int32_t Decoder::decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &fra
                 if (inIdx < 0 && inIdx != AMEDIACODEC_INFO_TRY_AGAIN_LATER) {
                     ALOGE("AMediaCodec_dequeueInputBuffer returned invalid index %zd\n", inIdx);
                     mErrorCode = (media_status_t)inIdx;
+                    onError(mCodec, mErrorCode);
                     return mErrorCode;
                 } else if (inIdx >= 0) {
                     mStats->addInputTime();

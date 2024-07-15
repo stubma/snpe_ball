@@ -27,6 +27,57 @@
 #include "Extractor.h"
 #include "Stats.h"
 
+class Decoder;
+
+/**
+ * Called when an input buffer becomes available.
+ * The specified index is the index of the available input buffer.
+ */
+typedef void (*RewooDecoderOnInputAvailable)(
+        AMediaCodec *codec,
+        Decoder *decoder,
+        int32_t index);
+/**
+ * Called when an output buffer becomes available.
+ * The specified index is the index of the available output buffer.
+ * The specified bufferInfo contains information regarding the available output buffer.
+ */
+typedef void (*RewooDecoderOnOutputAvailable)(
+        AMediaCodec *codec,
+        Decoder *decoder,
+        int32_t index,
+        AMediaCodecBufferInfo *bufferInfo);
+/**
+ * Called when the output format has changed.
+ * The specified format contains the new output format.
+ */
+typedef void (*RewooDecoderOnFormatChanged)(
+        AMediaCodec *codec,
+        Decoder *decoder,
+        AMediaFormat *format);
+/**
+ * Called when the MediaCodec encountered an error.
+ * The specified actionCode indicates the possible actions that client can take,
+ * and it can be checked by calling AMediaCodecActionCode_isRecoverable or
+ * AMediaCodecActionCode_isTransient. If both AMediaCodecActionCode_isRecoverable()
+ * and AMediaCodecActionCode_isTransient() return false, then the codec error is fatal
+ * and the codec must be deleted.
+ * The specified detail may contain more detailed messages about this error.
+ */
+typedef void (*RewooDecoderOnError)(
+        AMediaCodec *codec,
+        Decoder *decoder,
+        media_status_t error,
+        int32_t actionCode,
+        const char *detail);
+
+typedef struct {
+    RewooDecoderOnInputAvailable  onInputAvailable;
+    RewooDecoderOnOutputAvailable onOutputAvailable;
+    RewooDecoderOnFormatChanged   onFormatChanged;
+    RewooDecoderOnError           onError;
+} RewooDecoderCallback;
+
 class Decoder : public CallBackHandle {
   public:
     Decoder()
@@ -39,7 +90,9 @@ class Decoder : public CallBackHandle {
           mSawOutputEOS(false),
           mSignalledError(false),
           mErrorCode(AMEDIA_OK),
-          mInputBuffer(nullptr) {
+          mInputBuffer(nullptr),
+          _cb(nullptr),
+          _cbUserData(nullptr) {
         mExtractor = new Extractor();
     }
 
@@ -48,6 +101,12 @@ class Decoder : public CallBackHandle {
     }
 
     Extractor *getExtractor() { return mExtractor; }
+    inline void setCallback(RewooDecoderCallback* cb, void* userData) {
+        _cb = cb;
+        _cbUserData = userData;
+    }
+    inline void* getCallbackUserData() { return _cbUserData; }
+    inline int32_t getOuputFrameNum() { return mNumOutputFrame; }
 
     // Decoder related utilities
     void setupDecoder();
@@ -70,7 +129,7 @@ class Decoder : public CallBackHandle {
 
     // Process the frames and give decoded output
     int32_t decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &frameInfo,
-                   string &codecName, bool asyncMode, std::string outDir = "");
+                   string &codecName, bool asyncMode);
 
     void dumpStatistics(string inputReference, string componentName = "", string mode = "",
                         string statsFile = "");
@@ -80,6 +139,8 @@ class Decoder : public CallBackHandle {
     AMediaFormat *mFormat;
 
     Extractor *mExtractor;
+    RewooDecoderCallback* _cb;
+    void* _cbUserData;
 
     int32_t mNumInputFrame;
     int32_t mNumOutputFrame;
@@ -92,8 +153,6 @@ class Decoder : public CallBackHandle {
     int32_t mOffset;
     uint8_t *mInputBuffer;
     vector<AMediaCodecBufferInfo> mFrameMetaData;
-    std::string _outDir;
-    int32_t _outIdx;
 
     /* Asynchronous locks */
     mutex mMutex;

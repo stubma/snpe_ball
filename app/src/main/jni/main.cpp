@@ -6,6 +6,7 @@
 #include "SNPEFactory.hpp"
 #include "log.h"
 #include "codec_api.h"
+#include "utils.h"
 
 static const char short_options[] = "v";
 static const struct option long_options[] = {
@@ -71,17 +72,47 @@ static void process_opt(int argc, char *argv[]) {
     }
 }
 
+const std::string outDir = "/data/local/tmp/decode_output";
+static void onOutputAvailable(
+        AMediaCodec *codec,
+        Decoder *decoder,
+        int32_t index,
+        AMediaCodecBufferInfo *bufferInfo) {
+    size_t bufSize;
+    uint8_t *buf = AMediaCodec_getOutputBuffer(codec, index, &bufSize);
+    if (buf && bufferInfo->size > 0) {
+        char path[512] = {0};
+        sprintf(path, "%s/frame_%d.yuv", outDir.c_str(), decoder->getOuputFrameNum());
+        FILE* fp = fopen(path, "w+");
+        fwrite(buf, sizeof(char), bufferInfo->size, fp);
+        fflush(fp);
+        fclose(fp);
+        ALOGV("bytes(%d) written into file %s", bufferInfo->size, path);
+    }
+}
+
 int main(int argc, char *argv[]) {
     // handle arguments
     process_opt(argc, argv);
 
+    if(!outDir.empty() && !is_directory(outDir)) {
+        mkdirs(outDir.c_str());
+    }
+
+    RewooDecoderCallback cb{
+            nullptr,
+            onOutputAvailable,
+            nullptr,
+            nullptr
+    };
     decode_video(
             "/data/local/tmp/MediaBenchmark/res/",
             "rewoo_full.mp4",
             "/data/local/tmp/decoder.stat",
             "c2.qti.avc.decoder",
             false,
-            "/data/local/tmp/decode_output");
+            &cb,
+            nullptr);
 
     // ok
     return EXIT_SUCCESS;

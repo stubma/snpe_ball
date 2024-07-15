@@ -35,7 +35,8 @@ int decode_video(
         std::string stat_path,
         std::string codec,
         bool async,
-        std::string out_dir) {
+        RewooDecoderCallback* cb,
+        void* cbUserData) {
     string full_path = file_path + file_name;
     FILE *inputFp = fopen(full_path.c_str(), "rb");
     if (!inputFp) {
@@ -106,9 +107,10 @@ int decode_video(
         nsecs_t start = systemTime();
 
         decoder->setupDecoder();
+        decoder->setCallback(cb, cbUserData);
         ALOGD("native decoder setup: codec: %s, input buffer size: %u, frame count: %zu",
                 codec.c_str(), inputBufferOffset, frameInfo.size());
-        status = decoder->decode(inputBuffer, frameInfo, codec, async, out_dir);
+        status = decoder->decode(inputBuffer, frameInfo, codec, async);
         if (status != AMEDIA_OK) {
             ALOGE("Decode returned error: %d", status);
             free(inputBuffer);
