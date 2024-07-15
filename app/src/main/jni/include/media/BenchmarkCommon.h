@@ -34,7 +34,7 @@ using namespace std;
 
 constexpr uint32_t kQueueDequeueTimeoutUs = 1000;
 constexpr uint32_t kMaxCSDStrlen = 16;
-constexpr uint32_t kMaxBufferSize = 1024 * 1024 * 16;
+constexpr uint32_t kMaxBufferSize = 1024 * 1024 * 1024 * 1;
 // Change in kDefaultAudioEncodeFrameSize should also be taken to
 // AUDIO_ENCODE_DEFAULT_MAX_INPUT_SIZE present in Encoder.java
 constexpr uint32_t kDefaultAudioEncodeFrameSize = 4096;

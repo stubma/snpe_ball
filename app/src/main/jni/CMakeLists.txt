@@ -11,6 +11,7 @@ PROJECT(hexagon)
 aux_source_directory(./ SRCS)
 aux_source_directory(./snpe SRCS)
 aux_source_directory(./media SRCS)
+aux_source_directory(./shared SRCS)
 
 # libSnpeHtpV73Skel.so只有armv7的版本, 而其他库都是arm64的, 所以目前没有办法
 # 把snpe的所有依赖库都打包到apk里面, 所以目前只能用add_executable编译一个可执行
@@ -38,6 +39,7 @@ include_directories(
         snpe
         media
         include
+        include/shared
         include/media
         include/SNPE
         include/SNPE/DiagLog

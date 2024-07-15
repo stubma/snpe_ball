@@ -80,7 +80,8 @@ int main(int argc, char *argv[]) {
             "rewoo_full.mp4",
             "/data/local/tmp/decoder.stat",
             "c2.qti.avc.decoder",
-            false);
+            false,
+            "/data/local/tmp/decode_output");
 
     // ok
     return EXIT_SUCCESS;

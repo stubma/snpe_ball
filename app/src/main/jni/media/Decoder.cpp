@@ -20,6 +20,8 @@
 #include <iostream>
 
 #include "Decoder.h"
+#include "stdio.h"
+#include "utils.h"
 
 tuple<ssize_t, uint32_t, int64_t> readSampleData(uint8_t *inputBuffer, int32_t &offset,
                                                  vector<AMediaCodecBufferInfo> &frameInfo,
@@ -97,12 +99,18 @@ void Decoder::onOutputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx,
             return;
         }
 
-        if (mOutFp != nullptr) {
+        if (!_outDir.empty()) {
             size_t bufSize;
             uint8_t *buf = AMediaCodec_getOutputBuffer(mCodec, bufIdx, &bufSize);
-            if (buf) {
-                fwrite(buf, sizeof(char), bufferInfo->size, mOutFp);
-                ALOGV("bytes written into file  %d\n", bufferInfo->size);
+            if (buf && bufferInfo->size > 0) {
+                char path[512] = {0};
+                _outIdx++;
+                sprintf(path, "%s/frame_%d.yuv", _outDir.c_str(), _outIdx);
+                FILE* fp = fopen(path, "w+");
+                fwrite(buf, sizeof(char), bufferInfo->size, fp);
+                fflush(fp);
+                fclose(fp);
+                ALOGV("bytes(%d) written into file %s\n", bufferInfo->size, path);
             }
         }
 
@@ -144,11 +152,15 @@ AMediaFormat *Decoder::getFormat() {
 }
 
 int32_t Decoder::decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &frameInfo,
-                        string &codecName, bool asyncMode, FILE *outFp) {
+                        string &codecName, bool asyncMode, std::string outDir) {
     mInputBuffer = inputBuffer;
     mFrameMetaData = frameInfo;
     mOffset = 0;
-    mOutFp = outFp;
+    _outDir = outDir;
+    _outIdx = 0;
+    if(!outDir.empty() && !is_directory(outDir)) {
+        mkdirs(outDir.c_str());
+    }
 
     const char *mime = nullptr;
     AMediaFormat_getString(mFormat, AMEDIAFORMAT_KEY_MIME, &mime);

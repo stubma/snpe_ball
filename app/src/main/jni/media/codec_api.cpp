@@ -29,7 +29,13 @@
 #include <media/NdkMediaFormat.h>
 #include "Timers.h"
 
-int decode_video(std::string file_path, std::string file_name, std::string stat_path, std::string codec, bool async) {
+int decode_video(
+        std::string file_path,
+        std::string file_name,
+        std::string stat_path,
+        std::string codec,
+        bool async,
+        std::string out_dir) {
     string full_path = file_path + file_name;
     FILE *inputFp = fopen(full_path.c_str(), "rb");
     if (!inputFp) {
@@ -49,6 +55,10 @@ int decode_video(std::string file_path, std::string file_name, std::string stat_
     struct stat buf;
     stat(full_path.c_str(), &buf);
     size_t fileSize = buf.st_size;
+    if (fileSize > kMaxBufferSize) {
+        ALOGE("File size greater than maximum buffer size");
+        return -1;
+    }
     int32_t fd = fileno(inputFp);
     int32_t trackCount = extractor->initExtractor(fd, fileSize);
     if (trackCount <= 0) {
@@ -69,7 +79,7 @@ int decode_video(std::string file_path, std::string file_name, std::string stat_
             continue;
         }
 
-        uint8_t *inputBuffer = (uint8_t *) malloc(kMaxBufferSize);
+        uint8_t *inputBuffer = (uint8_t *) malloc(fileSize);
         if (!inputBuffer) {
             ALOGE("Insufficient memory");
             return -1;
@@ -78,60 +88,39 @@ int decode_video(std::string file_path, std::string file_name, std::string stat_
         vector<AMediaCodecBufferInfo> frameInfo;
         AMediaCodecBufferInfo info;
         uint32_t inputBufferOffset = 0;
-        uint32_t frameCount = 0;
 
-        decoder->setupDecoder();
-        nsecs_t decodeTime = 0;
-        status = extractor->getFrameSample(info);
-        while(!status && info.size) {
+        // Get frame data
+        while (1) {
+            status = extractor->getFrameSample(info);
+            if (status || !info.size) break;
+            // copy the meta data and buffer to be passed to decoder
             if (inputBufferOffset + info.size > kMaxBufferSize) {
-                nsecs_t start = systemTime();
-
-                frameCount += frameInfo.size();
-                ALOGD("decode batch: codec: %s, input buffer size: %u, frame count: %zu",
-                      codec.c_str(), inputBufferOffset, frameInfo.size());
-                status = decoder->decode(inputBuffer, frameInfo, codec, async);
-                if (status != AMEDIA_OK) {
-                    ALOGE("Decode returned error: %d", status);
-                    free(inputBuffer);
-                    return -1;
-                }
-
-                nsecs_t end = systemTime();
-                decodeTime += end - start;
-
-                frameInfo.clear();
-                inputBufferOffset = 0;
-            } else {
-                memcpy(inputBuffer + inputBufferOffset, extractor->getFrameBuf(), info.size);
-                frameInfo.push_back(info);
-                inputBufferOffset += info.size;
-                status = extractor->getFrameSample(info);
-            }
-        }
-
-        // last buffer
-        if(!frameInfo.empty()) {
-            nsecs_t start = systemTime();
-
-            frameCount += frameInfo.size();
-            ALOGD("decode batch: codec: %s, input buffer size: %u, frame count: %zu",
-                  codec.c_str(), inputBufferOffset, frameInfo.size());
-            status = decoder->decode(inputBuffer, frameInfo, codec, async);
-            if (status != AMEDIA_OK) {
-                ALOGE("Decode returned error: %d", status);
+                ALOGE("Memory allocated not sufficient");
                 free(inputBuffer);
                 return -1;
             }
+            memcpy(inputBuffer + inputBufferOffset, extractor->getFrameBuf(), info.size);
+            frameInfo.push_back(info);
+            inputBufferOffset += info.size;
+        }
+        nsecs_t start = systemTime();
 
-            nsecs_t end = systemTime();
-            decodeTime += end - start;
+        decoder->setupDecoder();
+        ALOGD("native decoder setup: codec: %s, input buffer size: %u, frame count: %zu",
+                codec.c_str(), inputBufferOffset, frameInfo.size());
+        status = decoder->decode(inputBuffer, frameInfo, codec, async, out_dir);
+        if (status != AMEDIA_OK) {
+            ALOGE("Decode returned error: %d", status);
+            free(inputBuffer);
+            return -1;
         }
 
-        ALOGD("frame count: %u, decode cost: %ldms(average: %ldms)",
-              frameCount,
+        nsecs_t end = systemTime();
+        nsecs_t decodeTime = end - start;
+        ALOGD("frame count: %zu, decode cost: %ldms(average: %ldms)",
+              frameInfo.size(),
               nanoseconds_to_milliseconds(decodeTime),
-              nanoseconds_to_milliseconds(decodeTime / frameCount));
+              nanoseconds_to_milliseconds(decodeTime / frameInfo.size()));
 
         decoder->deInitCodec();
         decoder->dumpStatistics(file_name, codec, (async ? "async" : "sync"),

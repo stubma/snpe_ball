@@ -39,8 +39,7 @@ class Decoder : public CallBackHandle {
           mSawOutputEOS(false),
           mSignalledError(false),
           mErrorCode(AMEDIA_OK),
-          mInputBuffer(nullptr),
-          mOutFp(nullptr) {
+          mInputBuffer(nullptr) {
         mExtractor = new Extractor();
     }
 
@@ -71,7 +70,7 @@ class Decoder : public CallBackHandle {
 
     // Process the frames and give decoded output
     int32_t decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &frameInfo,
-                   string &codecName, bool asyncMode, FILE *outFp = nullptr);
+                   string &codecName, bool asyncMode, std::string outDir = "");
 
     void dumpStatistics(string inputReference, string componentName = "", string mode = "",
                         string statsFile = "");
@@ -93,7 +92,8 @@ class Decoder : public CallBackHandle {
     int32_t mOffset;
     uint8_t *mInputBuffer;
     vector<AMediaCodecBufferInfo> mFrameMetaData;
-    FILE *mOutFp;
+    std::string _outDir;
+    int32_t _outIdx;
 
     /* Asynchronous locks */
     mutex mMutex;
