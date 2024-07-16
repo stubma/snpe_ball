@@ -13,4 +13,5 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "hexagon_test"
+include ':opencv'
 include ':app'

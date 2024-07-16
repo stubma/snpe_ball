@@ -33,6 +33,12 @@ add_library(libSNPE SHARED IMPORTED)
 set_target_properties(libc++_shared PROPERTIES IMPORTED_LOCATION ${IMPORT_DIR}/${ANDROID_ABI}/libc++_shared.so)
 set_target_properties(libSNPE PROPERTIES IMPORTED_LOCATION ${IMPORT_DIR}/${ANDROID_ABI}/libSNPE.so)
 
+# import opencv
+set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/../../../../opencv/native)
+include_directories(${OpenCV_DIR}/jni/include)
+add_library(lib_opencv SHARED IMPORTED)
+set_target_properties(lib_opencv PROPERTIES IMPORTED_LOCATION ${OpenCV_DIR}/libs/${ANDROID_ABI}/libopencv_java4.so)
+
 # include dir
 include_directories(
         .
@@ -57,4 +63,5 @@ target_link_libraries(
         ${media-lib}
         libc++_shared
         libSNPE
+        lib_opencv
 )

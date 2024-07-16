@@ -7,6 +7,7 @@
 #include "log.h"
 #include "codec_api.h"
 #include "utils.h"
+#include <opencv2/core.hpp>
 
 static const char short_options[] = "hl:v";
 static const struct option long_options[] = {
@@ -53,8 +54,10 @@ std::string getRuntimeStr() {
 
 static void print_version() {
     DlSystem::Version_t libVer = SNPE::SNPEFactory::getLibraryVersion();
-    printf("hexagon version: %s, available runtime: %s\n", libVer.toString().c_str(),
-           getRuntimeStr().c_str());
+    printf("hexagon version: %s, available runtime: %s, opencv version: %s\n",
+           libVer.toString().c_str(),
+           getRuntimeStr().c_str(),
+           CV_VERSION);
 }
 
 static void print_usage(int argc, char *argv[]) {
