@@ -3,7 +3,7 @@
 #include "log.h"
 #include "codec_api.h"
 #include "utils.h"
-#include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
 #include "dlc_runner.h"
 #include "global.h"
 
@@ -68,11 +68,25 @@ static void onOutputAvailable(
     uint8_t *buf = AMediaCodec_getOutputBuffer(codec, index, &bufSize);
     if (buf && bufferInfo->size > 0) {
         char path[512] = {0};
-        sprintf(path, "%s/frame_%d.yuv", g_output_dir.c_str(), decoder->getOuputFrameNum());
-        FILE* fp = fopen(path, "w+");
-        fwrite(buf, sizeof(char), bufferInfo->size, fp);
-        fflush(fp);
-        fclose(fp);
+        switch(g_output_file_type) {
+            case REWOO_OUTPUT_YUV: {
+                sprintf(path, "%s/frame_%d.yuv", g_output_dir.c_str(), decoder->getOuputFrameNum());
+                FILE *fp = fopen(path, "w+");
+                fwrite(buf, sizeof(char), bufferInfo->size, fp);
+                fflush(fp);
+                fclose(fp);
+                break;
+            }
+            case REWOO_OUTPUT_JPG: {
+                sprintf(path, "%s/frame_%d.jpg", g_output_dir.c_str(), decoder->getOuputFrameNum());
+                int32_t width = 7600, height = 2160;
+                cv::Mat matSrc = cv::Mat(height * 1.5, width, CV_8UC1, buf);
+                cv::Mat matDst = cv::Mat(height, width, CV_8UC3);
+                cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
+                cv::imwrite(path, matDst);
+                break;
+            }
+        }
         ALOGV("bytes(%d) written into file %s", bufferInfo->size, path);
     }
 }
