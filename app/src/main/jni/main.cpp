@@ -1,14 +1,11 @@
 #include <getopt.h>
 #include <stdio.h>
-#include "DlEnums.hpp"
-#include "DlVersion.hpp"
-#include "SNPE.hpp"
-#include "SNPEFactory.hpp"
 #include "log.h"
 #include "codec_api.h"
 #include "utils.h"
 #include <opencv2/core.hpp>
 #include "dlc_runner.h"
+#include "global.h"
 
 static const char short_options[] = "hl:v";
 static const struct option long_options[] = {
@@ -18,42 +15,9 @@ static const struct option long_options[] = {
         {0, 0, 0, 0}
 };
 
-DlSystem::Runtime_t checkRuntime() {
-    DlSystem::Version_t Version = SNPE::SNPEFactory::getLibraryVersion();
-    DlSystem::Runtime_t Runtime;
-    ALOGD("Qualcomm (R) Neural Processing SDK Version: %s\n",
-          Version.asString().c_str()); //Print Version number
-    if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::DSP)) {
-        Runtime = DlSystem::Runtime_t::DSP;
-    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::GPU)) {
-        Runtime = DlSystem::Runtime_t::GPU;
-    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::GPU_FLOAT16)) {
-        Runtime = DlSystem::Runtime_t::GPU;
-    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::CPU)) {
-        Runtime = DlSystem::Runtime_t::CPU;
-    } else {
-        Runtime = DlSystem::Runtime_t::UNSET;
-    }
-    return Runtime;
-}
-
-std::string getRuntimeStr() {
-    DlSystem::Runtime_t rt = checkRuntime();
-    switch (rt) {
-        case DlSystem::Runtime_t::GPU:
-            return "GPU";
-        case DlSystem::Runtime_t::CPU:
-            return "CPU";
-        case DlSystem::Runtime_t::DSP:
-            return "DSP";
-        default:
-            return "Unsupported";
-    }
-}
-
 static void print_version() {
     DlSystem::Version_t libVer = SNPE::SNPEFactory::getLibraryVersion();
-    printf("hexagon version: %s, available runtime: %s, opencv version: %s\n",
+    printf("SNPE version: %s, available runtime: %s, opencv version: %s\n",
            libVer.toString().c_str(),
            getRuntimeStr().c_str(),
            CV_VERSION);
@@ -86,7 +50,8 @@ static void process_opt(int argc, char *argv[]) {
                 print_version();
                 exit(EXIT_SUCCESS);
             case 'l':
-                setenv("ADSP_LIBRARY_PATH", optarg, true);
+                g_dsp_lib_dir = optarg;
+                setenv(DSP_ENV_VAR, optarg, true);
                 break;
             default:
                 break;
@@ -94,7 +59,6 @@ static void process_opt(int argc, char *argv[]) {
     }
 }
 
-const std::string outDir = "/data/local/tmp/decode_output";
 static void onOutputAvailable(
         AMediaCodec *codec,
         Decoder *decoder,
@@ -104,7 +68,7 @@ static void onOutputAvailable(
     uint8_t *buf = AMediaCodec_getOutputBuffer(codec, index, &bufSize);
     if (buf && bufferInfo->size > 0) {
         char path[512] = {0};
-        sprintf(path, "%s/frame_%d.yuv", outDir.c_str(), decoder->getOuputFrameNum());
+        sprintf(path, "%s/frame_%d.yuv", g_output_dir.c_str(), decoder->getOuputFrameNum());
         FILE* fp = fopen(path, "w+");
         fwrite(buf, sizeof(char), bufferInfo->size, fp);
         fflush(fp);
@@ -115,14 +79,14 @@ static void onOutputAvailable(
 
 int main(int argc, char *argv[]) {
     // set dsp library path so that runtime can use dsp
-    setenv("ADSP_LIBRARY_PATH", "/vendor/lib", true);
+    setenv(DSP_ENV_VAR, DEFAULT_DSP_LIB_DIR, true);
 
     // handle arguments
     process_opt(argc, argv);
 
     // ensure output dir exist
-    if(!outDir.empty() && !is_directory(outDir)) {
-        mkdirs(outDir.c_str());
+    if(!g_output_dir.empty() && !is_directory(g_output_dir)) {
+        mkdirs(g_output_dir.c_str());
     }
 
     RewooDecoderCallback cb{

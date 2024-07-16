@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "log.h"
 
 void mkdirs(const char* buf) {
     char tmp[256];
@@ -35,4 +36,37 @@ bool is_file_exists(std::string path) {
         return true;
     }
     return false;
+}
+
+DlSystem::Runtime_t checkRuntime() {
+    DlSystem::Version_t Version = SNPE::SNPEFactory::getLibraryVersion();
+    DlSystem::Runtime_t Runtime;
+    ALOGD("Qualcomm (R) Neural Processing SDK Version: %s\n",
+          Version.asString().c_str()); //Print Version number
+    if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::DSP)) {
+        Runtime = DlSystem::Runtime_t::DSP;
+    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::GPU)) {
+        Runtime = DlSystem::Runtime_t::GPU;
+    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::GPU_FLOAT16)) {
+        Runtime = DlSystem::Runtime_t::GPU;
+    } else if (SNPE::SNPEFactory::isRuntimeAvailable(DlSystem::Runtime_t::CPU)) {
+        Runtime = DlSystem::Runtime_t::CPU;
+    } else {
+        Runtime = DlSystem::Runtime_t::UNSET;
+    }
+    return Runtime;
+}
+
+std::string getRuntimeStr() {
+    DlSystem::Runtime_t rt = checkRuntime();
+    switch (rt) {
+        case DlSystem::Runtime_t::GPU:
+            return "GPU";
+        case DlSystem::Runtime_t::CPU:
+            return "CPU";
+        case DlSystem::Runtime_t::DSP:
+            return "DSP";
+        default:
+            return "Unsupported";
+    }
 }
