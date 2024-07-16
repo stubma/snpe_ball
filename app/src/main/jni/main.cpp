@@ -8,6 +8,7 @@
 #include "codec_api.h"
 #include "utils.h"
 #include <opencv2/core.hpp>
+#include "dlc_runner.h"
 
 static const char short_options[] = "hl:v";
 static const struct option long_options[] = {
@@ -16,8 +17,6 @@ static const struct option long_options[] = {
         {"help", no_argument, NULL, 'h'},
         {0, 0, 0, 0}
 };
-
-extern int run_dlc();
 
 DlSystem::Runtime_t checkRuntime() {
     DlSystem::Version_t Version = SNPE::SNPEFactory::getLibraryVersion();
@@ -121,6 +120,7 @@ int main(int argc, char *argv[]) {
     // handle arguments
     process_opt(argc, argv);
 
+    // ensure output dir exist
     if(!outDir.empty() && !is_directory(outDir)) {
         mkdirs(outDir.c_str());
     }

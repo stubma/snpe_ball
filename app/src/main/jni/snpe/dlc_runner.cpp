@@ -32,7 +32,7 @@ Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
     return env->NewStringUTF(getRuntimeStr().c_str());
 }
 
-void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
+static void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
     DlSystem::TensorShape tensorShape;
     tensorShape = snpe->getInputDimensions();
     const size_t* dims = tensorShape.getDimensions();
