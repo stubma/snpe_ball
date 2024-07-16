@@ -8,9 +8,11 @@
 #include "codec_api.h"
 #include "utils.h"
 
-static const char short_options[] = "v";
+static const char short_options[] = "hl:v";
 static const struct option long_options[] = {
         {"version", no_argument, NULL, 'v'},
+        {"dsp_library_path", required_argument, NULL, 'l'},
+        {"help", no_argument, NULL, 'h'},
         {0, 0, 0, 0}
 };
 
@@ -55,6 +57,18 @@ static void print_version() {
            getRuntimeStr().c_str());
 }
 
+static void print_usage(int argc, char *argv[]) {
+    fprintf(stdout,
+            "Usage: %s [options]\n"
+            "Version %s\n"
+            "Options:\n"
+            "-h | --help\t\t\tprint help\n"
+            "-l | --dsp_library_path\t\tset ADSP_LIBRARY_PATH environment, default is /vendor/lib\n"
+            "-v | --version\t\t\tprint version \n"
+            "\n",
+            argv[0], "v1.0.0");
+}
+
 static void process_opt(int argc, char *argv[]) {
     for (;;) {
         int idx;
@@ -63,9 +77,15 @@ static void process_opt(int argc, char *argv[]) {
         if (-1 == c)
             break;
         switch (c) {
+            case 'h':
+                print_usage(argc, argv);
+                exit(EXIT_SUCCESS);
             case 'v':
                 print_version();
                 exit(EXIT_SUCCESS);
+            case 'l':
+                setenv("ADSP_LIBRARY_PATH", optarg, true);
+                break;
             default:
                 break;
         }
@@ -92,6 +112,9 @@ static void onOutputAvailable(
 }
 
 int main(int argc, char *argv[]) {
+    // set dsp library path so that runtime can use dsp
+    setenv("ADSP_LIBRARY_PATH", "/vendor/lib", true);
+
     // handle arguments
     process_opt(argc, argv);
 
