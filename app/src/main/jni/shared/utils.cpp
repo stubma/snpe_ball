@@ -70,3 +70,33 @@ std::string getRuntimeStr() {
             return "Unsupported";
     }
 }
+
+size_t fwrite_ex(
+        const void* ptr,
+        size_t size,
+        size_t nitems,
+        size_t offset,
+        size_t stride,
+        FILE* stream) {
+    // if no stride, same as fwrite
+    if(stride == 0) {
+        return fwrite((char*)ptr + offset, size, nitems, stream);
+    }
+
+    // otherwise we need take care of stride
+    char* buf = (char*)ptr;
+    buf += offset;
+    size_t ret = 0;
+    for(size_t i = 0; i < nitems; i++) {
+        size_t w = fwrite(buf, size, 1, stream);
+        ret += w;
+        if(w != 1) {
+            break;
+        } else {
+            buf += stride;
+        }
+    }
+
+    // success
+    return ret;
+}

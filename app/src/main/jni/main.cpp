@@ -13,6 +13,8 @@ static const int ARG_HELP = 'h';
 static const int ARG_DUMP_FORMAT = 'd';
 static const int ARG_VIDEO_WIDTH = 1000;
 static const int ARG_VIDEO_HEIGHT = 1001;
+static const int ARG_OUTPUT_WIDTH = 1002;
+static const int ARG_OUTPUT_HEIGHT = 1003;
 static const char short_options[] = "d:hl:v";
 static const struct option long_options[] = {
         {"version", no_argument, NULL, ARG_VERSION},
@@ -23,6 +25,10 @@ static const struct option long_options[] = {
         {"video_width", required_argument, NULL, ARG_VIDEO_WIDTH},
         {"vh", required_argument, NULL, ARG_VIDEO_HEIGHT},
         {"video_height", required_argument, NULL, ARG_VIDEO_HEIGHT},
+        {"ow", required_argument, NULL, ARG_OUTPUT_WIDTH},
+        {"output_width", required_argument, NULL, ARG_OUTPUT_WIDTH},
+        {"oh", required_argument, NULL, ARG_OUTPUT_HEIGHT},
+        {"output_height", required_argument, NULL, ARG_OUTPUT_HEIGHT},
         {0, 0, 0, 0}
 };
 
@@ -57,10 +63,12 @@ static void process_opt(int argc, char *argv[]) {
             break;
         switch (c) {
             case ARG_DUMP_FORMAT:
-                if(!strcmp(optarg, "yuv")) {
+                if (!strcmp(optarg, "yuv")) {
                     g_output_file_type = REWOO_OUTPUT_YUV;
-                } else if(!strcmp(optarg, "jpg")) {
+                } else if (!strcmp(optarg, "jpg")) {
                     g_output_file_type = REWOO_OUTPUT_JPG;
+                } else if (!strcmp(optarg, "raw")) {
+                    g_output_file_type = REWOO_OUTPUT_RAW_RGB;
                 }
                 break;
             case ARG_HELP:
@@ -79,6 +87,12 @@ static void process_opt(int argc, char *argv[]) {
             case ARG_VIDEO_HEIGHT:
                 g_video_height = atoi(optarg);
                 break;
+            case ARG_OUTPUT_WIDTH:
+                g_output_width = atoi(optarg);
+                break;
+            case ARG_OUTPUT_HEIGHT:
+                g_output_height = atoi(optarg);
+                break;
             default:
                 break;
         }
@@ -94,7 +108,7 @@ static void onOutputAvailable(
     uint8_t *buf = AMediaCodec_getOutputBuffer(codec, index, &bufSize);
     if (buf && bufferInfo->size > 0) {
         char path[512] = {0};
-        switch(g_output_file_type) {
+        switch (g_output_file_type) {
             case REWOO_OUTPUT_YUV: {
                 sprintf(path, "%s/frame_%d.yuv", g_output_dir.c_str(), decoder->getOuputFrameNum());
                 FILE *fp = fopen(path, "w+");
@@ -113,6 +127,28 @@ static void onOutputAvailable(
                 ALOGV("JPG written into file %s", path);
                 break;
             }
+            case REWOO_OUTPUT_RAW_RGB: {
+                sprintf(path, "%s/frame_%d.raw", g_output_dir.c_str(), decoder->getOuputFrameNum());
+                cv::Mat matSrc = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
+                cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
+                cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
+                int32_t cx1 = (g_goalnet_points[2].x + g_goalnet_points[3].x) / 2;
+                int32_t cy1 = (g_goalnet_points[2].y + g_goalnet_points[3].y) / 2;
+                int32_t lx = std::min(g_video_width - g_output_width, std::max(0, cx1 - g_output_width / 2));
+                int32_t ly = std::min(g_video_height - g_output_height, std::max(0, cy1 - g_output_height / 2));
+                cv::Rect roi(lx, ly, g_output_width, g_output_height);
+                cv::Mat crop = matDst(roi);
+                cv::Mat floatCrop;
+                crop.convertTo(floatCrop, CV_32F, 1 / 255.0);
+                FILE *fp = fopen(path, "w+");
+                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), 0, floatCrop.elemSize(), fp);
+                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), sizeof(float32_t), floatCrop.elemSize(), fp);
+                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), sizeof(float32_t) * 2, floatCrop.elemSize(), fp);
+                fflush(fp);
+                fclose(fp);
+                ALOGV("bytes(%lu) written into file %s", floatCrop.total() * floatCrop.elemSize(), path);
+                break;
+            }
             default:
                 break;
         }
@@ -127,7 +163,7 @@ int main(int argc, char *argv[]) {
     process_opt(argc, argv);
 
     // ensure output dir exist
-    if(!g_output_dir.empty() && !is_directory(g_output_dir)) {
+    if (!g_output_dir.empty() && !is_directory(g_output_dir)) {
         mkdirs(g_output_dir.c_str());
     }
 
