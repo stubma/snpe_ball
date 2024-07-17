@@ -16,6 +16,7 @@
 #include "LoadInputTensor.hpp"
 #include "SaveOutputTensor.hpp"
 #include "Util.hpp"
+#include "dlc_runner.h"
 
 // constant
 std::string DIR = "/data/local/tmp/ball_v2";
@@ -94,7 +95,7 @@ static void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, size_t *batchSize) {
     }
 }
 
-int run_dlc() {
+int run_dlc(InputProvider *provider) {
     // print available runtime
     DlSystem::Runtime_t runtime = checkRuntime();
     switch (runtime) {
@@ -122,40 +123,12 @@ int run_dlc() {
     }
 
     // set builder
-    enum {
-        UNKNOWN, USERBUFFER_FLOAT, USERBUFFER_TF8, ITENSOR, USERBUFFER_TF16
-    };
-    enum {
-        CPUBUFFER, GLBUFFER
-    };
-    int userBufferSourceType = CPUBUFFER;
-    int bufferType = ITENSOR;
-    int bitWidth = 0;
     DlSystem::RuntimeList runtimeList;
     runtimeList.add(runtime);
     DlSystem::PlatformConfig platformConfig;
-    bool usingInitCaching = false;
-    bool staticQuantization = false;
-    bool useUserSuppliedBuffers = (bufferType == USERBUFFER_FLOAT ||
-                                   bufferType == USERBUFFER_TF8 ||
-                                   bufferType == USERBUFFER_TF16);
-    if (bufferType == USERBUFFER_TF8) {
-        bitWidth = 8;
-    } else if (bufferType == USERBUFFER_TF16) {
-        bitWidth = 16;
-    }
     std::unique_ptr<SNPE::SNPE> snpe = setBuilderOptions(container, runtime, runtimeList,
-                                                         useUserSuppliedBuffers, platformConfig,
-                                                         usingInitCaching);
-
-    // if caching enabled, save container
-    if (usingInitCaching) {
-        if (container->save(CONTAINER_PATH)) {
-            printf("Saved container into archive successfully\n");
-        } else {
-            printf("Failed to save container into archive\n");
-        }
-    }
+                                                         false, platformConfig,
+                                                         false);
 
     // Check the batch size for the container
     // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
@@ -163,144 +136,56 @@ int run_dlc() {
     size_t batchSize = 1;
     dumpModel(snpe, &batchSize);
 
-    // Open the input file listing and group input files into batches
-    std::vector<std::vector<std::string>> inputs = preprocessInput(INPUT_FILE_PATH, batchSize);
-
     // profile
     std::chrono::milliseconds networkCost = std::chrono::milliseconds(0);
     size_t frames = 0;
 
-    // Load contents of input file batches ino a SNPE tensor or user buffer,
-    // user buffer include cpu buffer and OpenGL buffer,
-    // execute the network with the input and save each of the returned output to a file.
-    if (useUserSuppliedBuffers) {
-        // SNPE allows its input and output buffers that are fed to the network
-        // to come from user-backed buffers. First, SNPE buffers are created from
-        // user-backed storage. These SNPE buffers are then supplied to the network
-        // and the results are stored in user-backed output buffers. This allows for
-        // reusing the same buffers for multiple inputs and outputs.
-        DlSystem::UserBufferMap inputMap, outputMap;
-        std::vector<std::unique_ptr<DlSystem::IUserBuffer>> snpeUserBackedInputBuffers, snpeUserBackedOutputBuffers;
-        std::unordered_map<std::string, std::vector<uint8_t>> applicationOutputBuffers;
+    // A tensor map for SNPE execution outputs
+    DlSystem::TensorMap outputTensorMap;
+    //Get input names and number
+    const auto &inputTensorNamesRef = snpe->getInputTensorNames();
+    if (!inputTensorNamesRef) throw std::runtime_error("Error obtaining Input tensor names");
+    const auto &inputTensorNames = *inputTensorNamesRef;
 
-        if (bufferType == USERBUFFER_TF8 || bufferType == USERBUFFER_TF16) {
-            createOutputBufferMap(outputMap, applicationOutputBuffers, snpeUserBackedOutputBuffers,
-                                  snpe, true, bitWidth);
-            std::unordered_map<std::string, std::vector<uint8_t>> applicationInputBuffers;
-            createInputBufferMap(inputMap, applicationInputBuffers, snpeUserBackedInputBuffers,
-                                 snpe, true, staticQuantization, bitWidth);
-
-            for (size_t i = 0; i < inputs.size(); i++) {
-                // Load input user buffer(s) with values from file(s)
-                if (batchSize > 1)
-                    std::cout << "Batch " << i << ":" << std::endl;
-                if (!loadInputUserBufferTfN(applicationInputBuffers, snpe, inputs[i], inputMap,
-                                            staticQuantization, bitWidth)) {
-                    return EXIT_FAILURE;
-                }
-
-                // Execute the input buffer map on the model with SNPE
-                bool execStatus = snpe->execute(inputMap, outputMap);
-
-                // Save the execution results only if successful
-                if (execStatus) {
-                    if (!saveOutput(outputMap, applicationOutputBuffers, OUTPUT_DIR, i * batchSize,
-                                    batchSize, true, bitWidth)) {
-                        return EXIT_FAILURE;
-                    }
-                } else {
-                    std::cerr << "Error while executing the network." << std::endl;
-                }
-            }
-        } else if (bufferType == USERBUFFER_FLOAT) {
-            createOutputBufferMap(outputMap, applicationOutputBuffers, snpeUserBackedOutputBuffers,
-                                  snpe, false, bitWidth);
-
-            if (userBufferSourceType == CPUBUFFER) {
-                std::unordered_map<std::string, std::vector<uint8_t>> applicationInputBuffers;
-                createInputBufferMap(inputMap, applicationInputBuffers, snpeUserBackedInputBuffers,
-                                     snpe, false, false, bitWidth);
-
-                for (size_t i = 0; i < inputs.size(); i++) {
-                    // Load input user buffer(s) with values from file(s)
-                    if (!loadInputUserBufferFloat(applicationInputBuffers, snpe, inputs[i])) {
-                        return EXIT_FAILURE;
-                    }
-
-                    // Execute the input buffer map on the model with SNPE
-                    bool execStatus = snpe->execute(inputMap, outputMap);
-
-                    // Save the execution results only if successful
-                    if (execStatus) {
-                        if (!saveOutput(outputMap, applicationOutputBuffers, OUTPUT_DIR,
-                                        i * batchSize,
-                                        batchSize, false, bitWidth)) {
-                            return EXIT_FAILURE;
-                        }
-                    } else {
-                        printf("Error while executing the network.\n");
-                    }
-                }
-            }
-        }
-    } else if (bufferType == ITENSOR) {
-        // A tensor map for SNPE execution outputs
-        DlSystem::TensorMap outputTensorMap;
-        //Get input names and number
-        const auto &inputTensorNamesRef = snpe->getInputTensorNames();
-        if (!inputTensorNamesRef) throw std::runtime_error("Error obtaining Input tensor names");
-        const auto &inputTensorNames = *inputTensorNamesRef;
-
-        bool execStatus = false;
-        for (size_t i = 0; i < inputs.size(); i++) {
+    bool execStatus = false;
+    size_t tensorCount = provider->getTensorCount();
+    for (size_t i = 0; i < tensorCount; i++) {
+        // Load input/output buffers with ITensor
+        if (inputTensorNames.size() == 1) {
             // Load input/output buffers with ITensor
-            if (inputTensorNames.size() == 1) {
-                // Load input/output buffers with ITensor
-                std::unique_ptr<DlSystem::ITensor> inputTensor = loadInputTensor(snpe,
-                                                                                 inputs[i],
-                                                                                 inputTensorNames);
-                if (!inputTensor) {
-                    return EXIT_FAILURE;
-                }
-
-                // Execute the input tensor on the model with SNPE
-                const auto start = std::chrono::high_resolution_clock::now();
-                execStatus = snpe->execute(inputTensor.get(), outputTensorMap);
-                const auto end = std::chrono::high_resolution_clock::now();
-                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        end - start);
-                networkCost += int_ms;
-                frames += inputs[i].size();
-            } else {
-                std::vector<std::unique_ptr<DlSystem::ITensor>> inputTensors(
-                        inputTensorNames.size());
-                DlSystem::TensorMap inputTensorMap;
-                bool inputLoadStatus = false;
-                // Load input/output buffers with TensorMap
-                std::tie(inputTensorMap, inputLoadStatus) = loadMultipleInput(snpe, inputs[i],
-                                                                              inputTensorNames,
-                                                                              inputTensors);
-                if (!inputLoadStatus) {
-                    return EXIT_FAILURE;
-                }
-
-                // Execute the multiple input tensorMap on the model with SNPE
-                const auto start = std::chrono::high_resolution_clock::now();
-                execStatus = snpe->execute(inputTensorMap, outputTensorMap);
-                const auto end = std::chrono::high_resolution_clock::now();
-                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        end - start);
-                networkCost += int_ms;
-                frames += inputs[i].size();
+            std::unique_ptr<DlSystem::ITensor> inputTensor = provider->getTensorAt(snpe, i);
+            if (!inputTensor) {
+                return EXIT_FAILURE;
             }
-            // Save the execution results if execution successful
-            if (execStatus) {
-                if (!saveOutput(outputTensorMap, OUTPUT_DIR, i * batchSize, batchSize)) {
-                    return EXIT_FAILURE;
-                }
-            } else {
-                std::cerr << "Error while executing the network." << std::endl;
+
+            // Execute the input tensor on the model with SNPE
+            const auto start = std::chrono::high_resolution_clock::now();
+            execStatus = snpe->execute(inputTensor.get(), outputTensorMap);
+            const auto end = std::chrono::high_resolution_clock::now();
+            const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    end - start);
+            networkCost += int_ms;
+            frames += batchSize;
+        } else {
+            // Load input/output buffers with TensorMap
+            DlSystem::TensorMap inputTensorMap = provider->getTensorMap(snpe);
+
+            // Execute the multiple input tensorMap on the model with SNPE
+            const auto start = std::chrono::high_resolution_clock::now();
+            execStatus = snpe->execute(inputTensorMap, outputTensorMap);
+            const auto end = std::chrono::high_resolution_clock::now();
+            const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    end - start);
+            networkCost += int_ms;
+            frames += batchSize;
+        }
+        // Save the execution results if execution successful
+        if (execStatus) {
+            if (!saveOutput(outputTensorMap, OUTPUT_DIR, i * batchSize, batchSize)) {
+                return EXIT_FAILURE;
             }
+        } else {
+            std::cerr << "Error while executing the network." << std::endl;
         }
     }
 

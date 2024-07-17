@@ -18,11 +18,10 @@ std::unique_ptr<DlSystem::ITensor> loadInputTensor(std::unique_ptr<SNPE::SNPE> &
                                                    std::vector<std::vector<float>> &rawList,
                                                    const DlSystem::StringList &inputTensorNames);
 
-std::tuple<DlSystem::TensorMap, bool>
-loadMultipleInput(std::unique_ptr<SNPE::SNPE> &snpe,
-                  std::vector<std::string> &fileLines,
-                  const DlSystem::StringList &inputTensorNames,
-                  std::vector<std::unique_ptr<DlSystem::ITensor>> &inputs);
+DlSystem::TensorMap loadMultipleInput(std::unique_ptr<SNPE::SNPE> &snpe,
+                                      std::vector<std::string> &fileLines,
+                                      const DlSystem::StringList &inputTensorNames,
+                                      bool &success);
 
 bool
 loadInputUserBufferFloat(std::unordered_map<std::string, std::vector<uint8_t>> &applicationBuffers,

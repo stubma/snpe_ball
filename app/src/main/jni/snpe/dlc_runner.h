@@ -1,3 +1,5 @@
 #pragma once
 
-int run_dlc();
+#include "input_provider.h"
+
+int run_dlc(InputProvider* provider);

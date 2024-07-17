@@ -106,17 +106,17 @@ std::unique_ptr<DlSystem::ITensor> loadInputTensor(std::unique_ptr<SNPE::SNPE> &
 }
 
 // Load multiple input tensors for a network which require multiple inputs
-std::tuple<DlSystem::TensorMap, bool>
-loadMultipleInput(std::unique_ptr<SNPE::SNPE> &snpe,
-                  std::vector<std::string> &fileLines,
-                  const DlSystem::StringList &inputTensorNames,
-                  std::vector<std::unique_ptr<DlSystem::ITensor>> &inputs) {
+DlSystem::TensorMap loadMultipleInput(std::unique_ptr<SNPE::SNPE> &snpe,
+                                      std::vector<std::string> &fileLines,
+                                      const DlSystem::StringList &inputTensorNames,
+                                      bool &success) {
     DlSystem::TensorMap dummy; // dummy map for returning on failure
     // Make sure the network requires multiple inputs
     assert(inputTensorNames.size() > 1);
 
     if (inputTensorNames.size()) std::cout << "Processing DNN Input: " << std::endl;
 
+    std::vector<std::unique_ptr<DlSystem::ITensor>> inputs(inputTensorNames.size());
     DlSystem::TensorMap inputTensorMap;
     for (size_t i = 0; i < fileLines.size(); i++) {
         std::string fileLine(fileLines[i]);
@@ -141,7 +141,8 @@ loadMultipleInput(std::unique_ptr<SNPE::SNPE> &snpe,
                 std::cerr << "Size of input does not match network.\n"
                           << "Expecting: " << inputs[j]->getSize() << "\n"
                           << "Got: " << inputVec.size() << "\n";
-                return std::make_tuple(dummy, false);
+                success = false;
+                return dummy;
             }
 
             std::copy(inputVec.begin(), inputVec.end(), inputs[j]->begin());
@@ -149,7 +150,8 @@ loadMultipleInput(std::unique_ptr<SNPE::SNPE> &snpe,
         }
     }
     std::cout << "Finished processing inputs for current inference \n";
-    return std::make_tuple(inputTensorMap, true);
+    success = true;
+    return inputTensorMap;
 }
 
 bool
