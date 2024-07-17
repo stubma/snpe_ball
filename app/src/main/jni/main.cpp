@@ -11,12 +11,18 @@ static const int ARG_VERSION = 'v';
 static const int ARG_DSP_LIB_DIR = 'l';
 static const int ARG_HELP = 'h';
 static const int ARG_DUMP_FORMAT = 'd';
+static const int ARG_VIDEO_WIDTH = 1000;
+static const int ARG_VIDEO_HEIGHT = 1001;
 static const char short_options[] = "d:hl:v";
 static const struct option long_options[] = {
         {"version", no_argument, NULL, ARG_VERSION},
         {"dsp_library_path", required_argument, NULL, ARG_DSP_LIB_DIR},
         {"help", no_argument, NULL, ARG_HELP},
         {"dump", required_argument, NULL, ARG_DUMP_FORMAT},
+        {"vw", required_argument, NULL, ARG_VIDEO_WIDTH},
+        {"video_width", required_argument, NULL, ARG_VIDEO_WIDTH},
+        {"vh", required_argument, NULL, ARG_VIDEO_HEIGHT},
+        {"video_height", required_argument, NULL, ARG_VIDEO_HEIGHT},
         {0, 0, 0, 0}
 };
 
@@ -37,6 +43,8 @@ static void print_usage(int argc, char *argv[]) {
             "-h | --help\t\t\tprint help\n"
             "-l | --dsp_library_path\t\tset ADSP_LIBRARY_PATH environment, default is /vendor/lib\n"
             "-v | --version\t\t\tprint version \n"
+            "--vw | --video_width\t\tspecify video width\n"
+            "--vh | --video_height\t\tspecify video height\n"
             "\n",
             argv[0], "v1.0.0");
 }
@@ -64,6 +72,12 @@ static void process_opt(int argc, char *argv[]) {
             case ARG_DSP_LIB_DIR:
                 g_dsp_lib_dir = optarg;
                 setenv(DSP_ENV_VAR, optarg, true);
+                break;
+            case ARG_VIDEO_WIDTH:
+                g_video_width = atoi(optarg);
+                break;
+            case ARG_VIDEO_HEIGHT:
+                g_video_height = atoi(optarg);
                 break;
             default:
                 break;
