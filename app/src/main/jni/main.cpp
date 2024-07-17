@@ -79,9 +79,8 @@ static void onOutputAvailable(
             }
             case REWOO_OUTPUT_JPG: {
                 sprintf(path, "%s/frame_%d.jpg", g_output_dir.c_str(), decoder->getOuputFrameNum());
-                int32_t width = 7600, height = 2160;
-                cv::Mat matSrc = cv::Mat(height * 1.5, width, CV_8UC1, buf);
-                cv::Mat matDst = cv::Mat(height, width, CV_8UC3);
+                cv::Mat matSrc = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
+                cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
                 cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
                 cv::imwrite(path, matDst);
                 break;
