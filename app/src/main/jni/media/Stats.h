@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <numeric>
 #include <vector>
-#include "log.h"
+#include "shared/log.h"
 
 // Include local copy of Timers taken from system/core/libutils
 #include "Timers.h"

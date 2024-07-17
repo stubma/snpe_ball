@@ -45,8 +45,6 @@ include_directories(
         snpe
         media
         include
-        include/shared
-        include/media
         include/SNPE
         include/SNPE/DiagLog
         include/SNPE/DlContainer

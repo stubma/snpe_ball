@@ -1,11 +1,11 @@
 #include <getopt.h>
 #include <stdio.h>
-#include "log.h"
+#include "shared/log.h"
 #include "codec_api.h"
-#include "utils.h"
+#include "shared/utils.h"
 #include <opencv2/opencv.hpp>
 #include "dlc_runner.h"
-#include "global.h"
+#include "shared/global.h"
 
 static const int ARG_VERSION = 'v';
 static const int ARG_DSP_LIB_DIR = 'l';

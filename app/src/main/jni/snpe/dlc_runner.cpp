@@ -8,7 +8,7 @@
 #include <string>
 #include <memory>
 #include "IDlContainer.hpp"
-#include "log.h"
+#include "shared/log.h"
 #include "LoadContainer.hpp"
 #include "SetBuilderOptions.hpp"
 #include "PreprocessInput.hpp"
