@@ -18,10 +18,10 @@
 
 
 // Load a batched single input tensor for a network which requires a single input
-std::unique_ptr <DlSystem::ITensor> loadInputTensor(std::unique_ptr <SNPE::SNPE> &snpe,
-                                                         std::vector <std::string> &fileLines,
-                                                         const DlSystem::StringList &inputTensorNames) {
-    std::unique_ptr <DlSystem::ITensor> input;
+std::unique_ptr<DlSystem::ITensor> loadInputTensor(std::unique_ptr<SNPE::SNPE> &snpe,
+                                                   std::vector<std::string> &fileLines,
+                                                   const DlSystem::StringList &inputTensorNames) {
+    std::unique_ptr<DlSystem::ITensor> input;
     // Make sure the network requires only a single input
     assert(inputTensorNames.size() == 1);
 
@@ -63,12 +63,54 @@ std::unique_ptr <DlSystem::ITensor> loadInputTensor(std::unique_ptr <SNPE::SNPE>
     return input;
 }
 
+std::unique_ptr<DlSystem::ITensor> loadInputTensor(std::unique_ptr<SNPE::SNPE> &snpe,
+                                                   std::vector<std::vector<float>> &rawList,
+                                                   const DlSystem::StringList &inputTensorNames) {
+    std::unique_ptr<DlSystem::ITensor> input;
+    // Make sure the network requires only a single input
+    assert(inputTensorNames.size() == 1);
+
+    // If the network has a single input, each line represents the input file to be loaded for that input
+    std::vector<float> inputVec;
+    for (auto &raw: rawList) {
+        inputVec.insert(inputVec.end(), raw.begin(), raw.end());
+    }
+
+    /* Create an input tensor that is correctly sized to hold the input of the network. Dimensions that have no fixed size will be represented with a value of 0. */
+    const auto &inputDims_opt = snpe->getInputDimensions(inputTensorNames.at(0));
+    const auto &inputShape = *inputDims_opt;
+
+    /* Calculate the total number of elements that can be stored in the tensor so that we can check that the input contains the expected number of elements.
+       With the input dimensions computed create a tensor to convey the input into the network. */
+    input = SNPE::SNPEFactory::getTensorFactory().createTensor(inputShape);
+    //Padding the input vector so as to make the size of the vector to equal to an integer multiple of the batch size
+    DlSystem::TensorShape tensorShape = snpe->getInputDimensions();
+    size_t batchSize = tensorShape.getDimensions()[0];
+    if (rawList.size() < batchSize) {
+        for (size_t j = 0; j < batchSize - rawList.size(); j++) {
+            std::vector<float> padding(input->getSize() / batchSize, 0);
+            inputVec.insert(inputVec.end(), padding.begin(), padding.end());
+        }
+    }
+
+    if (input->getSize() != inputVec.size()) {
+        std::cerr << "Size of input does not match network.\n"
+                  << "Expecting: " << input->getSize() << "\n"
+                  << "Got: " << inputVec.size() << "\n";
+        return nullptr;
+    }
+
+    /* Copy the raw contents into the networks input tensor. SNPE's ITensor supports C++ STL functions like std::copy() */
+    std::copy(inputVec.begin(), inputVec.end(), input->begin());
+    return input;
+}
+
 // Load multiple input tensors for a network which require multiple inputs
 std::tuple<DlSystem::TensorMap, bool>
-loadMultipleInput(std::unique_ptr <SNPE::SNPE> &snpe,
-                  std::vector <std::string> &fileLines,
+loadMultipleInput(std::unique_ptr<SNPE::SNPE> &snpe,
+                  std::vector<std::string> &fileLines,
                   const DlSystem::StringList &inputTensorNames,
-                  std::vector <std::unique_ptr<DlSystem::ITensor>> &inputs) {
+                  std::vector<std::unique_ptr<DlSystem::ITensor>> &inputs) {
     DlSystem::TensorMap dummy; // dummy map for returning on failure
     // Make sure the network requires multiple inputs
     assert(inputTensorNames.size() > 1);
@@ -79,7 +121,7 @@ loadMultipleInput(std::unique_ptr <SNPE::SNPE> &snpe,
     for (size_t i = 0; i < fileLines.size(); i++) {
         std::string fileLine(fileLines[i]);
         // Treat each line as a space-separated list of input files
-        std::vector <std::string> filePaths;
+        std::vector<std::string> filePaths;
         split(filePaths, fileLine, ' ');
 
         for (size_t j = 0; j < inputTensorNames.size(); j++) {
@@ -111,9 +153,9 @@ loadMultipleInput(std::unique_ptr <SNPE::SNPE> &snpe,
 }
 
 bool
-loadInputUserBufferTfN(std::unordered_map <std::string, std::vector<uint8_t>> &applicationBuffers,
-                       std::unique_ptr <SNPE::SNPE> &snpe,
-                       std::vector <std::string> &fileLines,
+loadInputUserBufferTfN(std::unordered_map<std::string, std::vector<uint8_t>> &applicationBuffers,
+                       std::unique_ptr<SNPE::SNPE> &snpe,
+                       std::vector<std::string> &fileLines,
                        DlSystem::UserBufferMap &inputMap,
                        bool staticQuantization,
                        int bitWidth) {
@@ -128,7 +170,7 @@ loadInputUserBufferTfN(std::unordered_map <std::string, std::vector<uint8_t>> &a
     for (size_t i = 0; i < fileLines.size(); i++) {
         std::string fileLine(fileLines[i]);
         // treat each line as a space-separated list of input files
-        std::vector <std::string> filePaths;
+        std::vector<std::string> filePaths;
         split(filePaths, fileLine, ' ');
 
         for (size_t j = 0; j < inputNames.size(); j++) {
@@ -175,9 +217,9 @@ loadInputUserBufferTfN(std::unordered_map <std::string, std::vector<uint8_t>> &a
 
 // Load multiple batched input user buffers
 bool
-loadInputUserBufferFloat(std::unordered_map <std::string, std::vector<uint8_t>> &applicationBuffers,
-                         std::unique_ptr <SNPE::SNPE> &snpe,
-                         std::vector <std::string> &fileLines) {
+loadInputUserBufferFloat(std::unordered_map<std::string, std::vector<uint8_t>> &applicationBuffers,
+                         std::unique_ptr<SNPE::SNPE> &snpe,
+                         std::vector<std::string> &fileLines) {
     // get input tensor names of the network that need to be populated
     const auto &inputNamesOpt = snpe->getInputTensorNames();
     if (!inputNamesOpt) throw std::runtime_error("Error obtaining input tensor names");
@@ -189,7 +231,7 @@ loadInputUserBufferFloat(std::unordered_map <std::string, std::vector<uint8_t>> 
     for (size_t i = 0; i < fileLines.size(); i++) {
         std::string fileLine(fileLines[i]);
         // treat each line as a space-separated list of input files
-        std::vector <std::string> filePaths;
+        std::vector<std::string> filePaths;
         split(filePaths, fileLine, ' ');
 
         for (size_t j = 0; j < inputNames.size(); j++) {
@@ -209,8 +251,8 @@ loadInputUserBufferFloat(std::unordered_map <std::string, std::vector<uint8_t>> 
     return true;
 }
 
-void loadInputUserBuffer(std::unordered_map <std::string, GLuint> &applicationBuffers,
-                         std::unique_ptr <SNPE::SNPE> &snpe,
+void loadInputUserBuffer(std::unordered_map<std::string, GLuint> &applicationBuffers,
+                         std::unique_ptr<SNPE::SNPE> &snpe,
                          const GLuint inputglbuffer) {
     // get input tensor names of the network that need to be populated
     const auto &inputNamesOpt = snpe->getInputTensorNames();

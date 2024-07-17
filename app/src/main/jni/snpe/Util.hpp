@@ -34,7 +34,7 @@ std::vector<unsigned char> loadByteDataFile(const std::string &inputFile);
 std::vector<unsigned char> loadByteDataFileBatched(const std::string &inputFile);
 
 template<typename T>
-bool loadByteDataFile(const std::string &inputFile, std::vector <T> &loadVector) {
+bool loadByteDataFile(const std::string &inputFile, std::vector<T> &loadVector) {
     std::ifstream in(inputFile, std::ifstream::binary);
     if (!in.is_open() || !in.good()) {
         std::cerr << "Failed to open input file: " << inputFile << "\n";
@@ -64,7 +64,7 @@ bool loadByteDataFile(const std::string &inputFile, std::vector <T> &loadVector)
 
 template<typename T>
 bool
-loadByteDataFileBatched(const std::string &inputFile, std::vector <T> &loadVector, size_t offset) {
+loadByteDataFileBatched(const std::string &inputFile, std::vector<T> &loadVector, size_t offset) {
     std::ifstream in(inputFile, std::ifstream::binary | std::ios::ate);
     if (!in.is_open() || !in.good()) {
         std::cerr << "Failed to open input file: " << inputFile << "\n";
@@ -93,10 +93,10 @@ loadByteDataFileBatched(const std::string &inputFile, std::vector <T> &loadVecto
     return true;
 }
 
-bool loadByteDataFileBatchedTf8(const std::string &inputFile, std::vector <uint8_t> &loadVector,
+bool loadByteDataFileBatchedTf8(const std::string &inputFile, std::vector<uint8_t> &loadVector,
                                 size_t offset);
 
-bool loadByteDataFileBatchedTfN(const std::string &inputFile, std::vector <uint8_t> &loadVector,
+bool loadByteDataFileBatchedTfN(const std::string &inputFile, std::vector<uint8_t> &loadVector,
                                 size_t offset,
                                 unsigned char &stepEquivalentTo0, float &quantizedStepSize,
                                 bool staticQuantization, int bitWidth);
@@ -105,7 +105,7 @@ bool
 SaveITensorBatched(const std::string &path, const DlSystem::ITensor *tensor, size_t batchIndex = 0,
                    size_t batchChunk = 0);
 
-bool SaveUserBufferBatched(const std::string &path, const std::vector <uint8_t> &buffer,
+bool SaveUserBufferBatched(const std::string &path, const std::vector<uint8_t> &buffer,
                            size_t batchIndex = 0, size_t batchChunk = 0);
 
 bool EnsureDirectory(const std::string &dir);

@@ -50,7 +50,7 @@ bool saveOutput(DlSystem::TensorMap outputTensorMap,
 
 // Execute the network on an input user buffer map and print results to raw files
 bool saveOutput(DlSystem::UserBufferMap &outputMap,
-                std::unordered_map <std::string, std::vector<uint8_t>> &applicationOutputBuffers,
+                std::unordered_map<std::string, std::vector<uint8_t>> &applicationOutputBuffers,
                 const std::string &outputDir,
                 int num,
                 size_t batchSize,
@@ -79,7 +79,7 @@ bool saveOutput(DlSystem::UserBufferMap &outputMap,
                 batchChunk = std::min(batchChunk, dataChunk);
             }
             if (isTfNBuffer) {
-                std::vector <uint8_t> output;
+                std::vector<uint8_t> output;
                 DlSystem::UserBufferEncodingTfN ubetfN = dynamic_cast<DlSystem::UserBufferEncodingTfN &>(outputMap.getUserBuffer(
                         name)->getEncoding());
                 output.resize(

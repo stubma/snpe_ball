@@ -24,8 +24,8 @@ std::vector<std::vector<std::string>> preprocessInput(std::string filePath, size
     // Store batches of inputs into vectors of strings
     std::vector<std::vector<std::string>> result;
     std::vector<std::string> batch;
-    for(auto& line : lines) {
-        if(batch.size() == batchSize) {
+    for (auto &line: lines) {
+        if (batch.size() == batchSize) {
             result.push_back(batch);
             batch.clear();
         }

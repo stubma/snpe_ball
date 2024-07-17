@@ -16,7 +16,7 @@ bool saveOutput(DlSystem::TensorMap outputTensorMap,
 
 // Save output USERBUFFER
 bool saveOutput(DlSystem::UserBufferMap &outputMap,
-                std::unordered_map <std::string, std::vector<uint8_t>> &applicationOutputBuffers,
+                std::unordered_map<std::string, std::vector<uint8_t>> &applicationOutputBuffers,
                 const std::string &outputDir,
                 int num,
                 size_t batchSize,

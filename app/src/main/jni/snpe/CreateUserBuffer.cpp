@@ -17,9 +17,9 @@
 #include "UserBufferMap.hpp"
 
 void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
-                      std::unordered_map <std::string, std::vector<uint8_t>> &applicationBuffers,
-                      std::vector <std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
-                      std::unique_ptr <SNPE::SNPE> &snpe,
+                      std::unordered_map<std::string, std::vector<uint8_t>> &applicationBuffers,
+                      std::vector<std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
+                      std::unique_ptr<SNPE::SNPE> &snpe,
                       const char *name,
                       const bool isTfNBuffer,
                       bool staticQuantization,
@@ -47,7 +47,7 @@ void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
     // Note: Strides = Number of bytes to advance to the next element in each dimension.
     // For example, if a float tensor of dimension 2x4x3 is tightly packed in a buffer of 96 bytes, then the strides would be (48,12,4)
     // Note: Buffer stride is usually known and does not need to be calculated.
-    std::vector <size_t> strides(bufferShape.rank());
+    std::vector<size_t> strides(bufferShape.rank());
     strides[strides.size() - 1] = bufferElementSize;
     size_t stride = strides[strides.size() - 1];
     for (size_t i = bufferShape.rank() - 1; i > 0; i--) {
@@ -60,7 +60,7 @@ void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
     printf("createUserBuffer, calculated buffer size: %ld\n", bufSize);
 
     // set the buffer encoding type
-    std::unique_ptr <DlSystem::UserBufferEncoding> userBufferEncoding;
+    std::unique_ptr<DlSystem::UserBufferEncoding> userBufferEncoding;
     if (isTfNBuffer) {
         if ((*bufferAttributesOpt)->getEncodingType() ==
             DlSystem::UserBufferEncoding::ElementType_t::FLOAT && staticQuantization) {
@@ -96,9 +96,9 @@ void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
 }
 
 void createInputBufferMap(DlSystem::UserBufferMap &inputMap,
-                          std::unordered_map <std::string, std::vector<uint8_t>> &applicationBuffers,
-                          std::vector <std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
-                          std::unique_ptr <SNPE::SNPE> &snpe,
+                          std::unordered_map<std::string, std::vector<uint8_t>> &applicationBuffers,
+                          std::vector<std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
+                          std::unique_ptr<SNPE::SNPE> &snpe,
                           bool isTfNBuffer,
                           bool staticQuantization,
                           int bitWidth) {
@@ -116,9 +116,9 @@ void createInputBufferMap(DlSystem::UserBufferMap &inputMap,
 }
 
 void createOutputBufferMap(DlSystem::UserBufferMap &outputMap,
-                           std::unordered_map <std::string, std::vector<uint8_t>> &applicationBuffers,
-                           std::vector <std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
-                           std::unique_ptr <SNPE::SNPE> &snpe,
+                           std::unordered_map<std::string, std::vector<uint8_t>> &applicationBuffers,
+                           std::vector<std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
+                           std::unique_ptr<SNPE::SNPE> &snpe,
                            bool isTfNBuffer,
                            int bitWidth) {
     // get input tensor names of the network that need to be populated
@@ -134,9 +134,9 @@ void createOutputBufferMap(DlSystem::UserBufferMap &outputMap,
 }
 
 void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
-                      std::unordered_map <std::string, GLuint> &applicationBuffers,
-                      std::vector <std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
-                      std::unique_ptr <SNPE::SNPE> &snpe,
+                      std::unordered_map<std::string, GLuint> &applicationBuffers,
+                      std::vector<std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
+                      std::unique_ptr<SNPE::SNPE> &snpe,
                       const char *name) {
     // get attributes of buffer by name
     auto bufferAttributesOpt = snpe->getInputOutputBufferAttributes(name);
@@ -149,7 +149,7 @@ void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
     // calculate stride based on buffer strides
     // Note: Strides = Number of bytes to advance to the next element in each dimension.
     // For example, if a float tensor of dimension 2x4x3 is tightly packed in a buffer of 96 bytes, then the strides would be (48,12,4)
-    std::vector <size_t> strides(bufferShape.rank());
+    std::vector<size_t> strides(bufferShape.rank());
     strides[strides.size() - 1] = sizeof(float);
     size_t stride = strides[strides.size() - 1];
     for (size_t i = bufferShape.rank() - 1; i > 0; i--) {
@@ -181,9 +181,9 @@ void createUserBuffer(DlSystem::UserBufferMap &userBufferMap,
 }
 
 void createInputBufferMap(DlSystem::UserBufferMap &inputMap,
-                          std::unordered_map <std::string, GLuint> &applicationBuffers,
-                          std::vector <std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
-                          std::unique_ptr <SNPE::SNPE> &snpe) {
+                          std::unordered_map<std::string, GLuint> &applicationBuffers,
+                          std::vector<std::unique_ptr<DlSystem::IUserBuffer>> &snpeUserBackedBuffers,
+                          std::unique_ptr<SNPE::SNPE> &snpe) {
     // get input tensor names of the network that need to be populated
     const auto &inputNamesOpt = snpe->getInputTensorNames();
     if (!inputNamesOpt) throw std::runtime_error("Error obtaining input tensor names");

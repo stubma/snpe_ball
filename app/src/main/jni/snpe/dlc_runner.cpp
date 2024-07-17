@@ -24,6 +24,7 @@ static std::string INPUT_FILE_PATH = DIR + "/target_raw_list.txt";
 static std::string OUTPUT_DIR = DIR + "/output";
 
 extern DlSystem::Runtime_t checkRuntime();
+
 extern std::string getRuntimeStr();
 
 extern "C"
@@ -32,13 +33,13 @@ Java_com_example_hexagon_1test_Hexagon_checkRuntime(JNIEnv *env, jobject thiz) {
     return env->NewStringUTF(getRuntimeStr().c_str());
 }
 
-static void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
+static void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, size_t *batchSize) {
     DlSystem::TensorShape tensorShape;
     tensorShape = snpe->getInputDimensions();
-    const size_t* dims = tensorShape.getDimensions();
+    const size_t *dims = tensorShape.getDimensions();
     printf("model input dimensions: ");
-    for(int i = 0; i < tensorShape.rank(); i++) {
-        if(i == 0) {
+    for (int i = 0; i < tensorShape.rank(); i++) {
+        if (i == 0) {
             *batchSize = dims[i];
         }
         printf("%d ", dims[i]);
@@ -58,9 +59,9 @@ static void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
 
         printf("model input tensor(%s) dimensions: ", name);
         const DlSystem::TensorShape &bufferShape = (*attrs)->getDims();
-        const size_t* dims = bufferShape.getDimensions();
-        for(int i = 0; i < bufferShape.rank(); i++) {
-            if(i == 0) {
+        const size_t *dims = bufferShape.getDimensions();
+        for (int i = 0; i < bufferShape.rank(); i++) {
+            if (i == 0) {
                 *batchSize = dims[i];
             }
             printf("%d ", dims[i]);
@@ -70,7 +71,7 @@ static void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
     }
 
     // dump output tensors
-    const auto& outputNamesOpt = snpe->getOutputTensorNames();
+    const auto &outputNamesOpt = snpe->getOutputTensorNames();
     if (!outputNamesOpt) throw std::runtime_error("Error obtaining output tensor names");
     const DlSystem::StringList &outputNames = *outputNamesOpt;
     for (const char *name: outputNames) {
@@ -81,9 +82,9 @@ static void dumpModel(std::unique_ptr<SNPE::SNPE>& snpe, size_t* batchSize) {
 
         printf("model output tensor(%s) dimensions: ", name);
         const DlSystem::TensorShape &bufferShape = (*attrs)->getDims();
-        const size_t* dims = bufferShape.getDimensions();
-        for(int i = 0; i < bufferShape.rank(); i++) {
-            if(i == 0) {
+        const size_t *dims = bufferShape.getDimensions();
+        for (int i = 0; i < bufferShape.rank(); i++) {
+            if (i == 0) {
                 *batchSize = dims[i];
             }
             printf("%d ", dims[i]);
@@ -256,8 +257,8 @@ int run_dlc() {
             if (inputTensorNames.size() == 1) {
                 // Load input/output buffers with ITensor
                 std::unique_ptr<DlSystem::ITensor> inputTensor = loadInputTensor(snpe,
-                                                                                      inputs[i],
-                                                                                      inputTensorNames);
+                                                                                 inputs[i],
+                                                                                 inputTensorNames);
                 if (!inputTensor) {
                     return EXIT_FAILURE;
                 }
@@ -266,7 +267,8 @@ int run_dlc() {
                 const auto start = std::chrono::high_resolution_clock::now();
                 execStatus = snpe->execute(inputTensor.get(), outputTensorMap);
                 const auto end = std::chrono::high_resolution_clock::now();
-                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        end - start);
                 networkCost += int_ms;
                 frames += inputs[i].size();
             } else {
@@ -286,7 +288,8 @@ int run_dlc() {
                 const auto start = std::chrono::high_resolution_clock::now();
                 execStatus = snpe->execute(inputTensorMap, outputTensorMap);
                 const auto end = std::chrono::high_resolution_clock::now();
-                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+                const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        end - start);
                 networkCost += int_ms;
                 frames += inputs[i].size();
             }
@@ -303,7 +306,8 @@ int run_dlc() {
 
     // dump profile
     size_t avgFrameMs = networkCost.count() / frames;
-    printf("total cost: %llu ms, frames: %lu, average frame nn cost: %lu ms\n", networkCost.count(), frames, avgFrameMs);
+    printf("total cost: %llu ms, frames: %lu, average frame nn cost: %lu ms\n", networkCost.count(),
+           frames, avgFrameMs);
 
     // Freeing of snpe object
     snpe.reset();

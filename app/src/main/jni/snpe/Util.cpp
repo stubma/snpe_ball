@@ -12,7 +12,7 @@
 #include "ITensorFactory.hpp"
 #include "TensorShape.hpp"
 
-static void mkdirs(const char* buf, int dirmode) {
+static void mkdirs(const char *buf, int dirmode) {
     char tmp[512];
     char *p = NULL;
     size_t len;

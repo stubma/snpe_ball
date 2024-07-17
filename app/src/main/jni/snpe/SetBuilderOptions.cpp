@@ -4,14 +4,14 @@
 #include "DlContainer/IDlContainer.hpp"
 #include "SNPE/SNPEBuilder.hpp"
 
-std::unique_ptr <SNPE::SNPE>
-setBuilderOptions(std::unique_ptr <DlContainer::IDlContainer> &container,
+std::unique_ptr<SNPE::SNPE>
+setBuilderOptions(std::unique_ptr<DlContainer::IDlContainer> &container,
                   DlSystem::Runtime_t runtime,
                   DlSystem::RuntimeList runtimeList,
                   bool useUserSuppliedBuffers,
                   DlSystem::PlatformConfig platformConfig,
                   bool useCaching) {
-    std::unique_ptr <SNPE::SNPE> snpe;
+    std::unique_ptr<SNPE::SNPE> snpe;
     SNPE::SNPEBuilder snpeBuilder(container.get());
 
     if (runtimeList.empty()) {
