@@ -3,6 +3,7 @@
 #include <string>
 
 typedef enum {
+    REWOO_OUTPUT_NONE,
     REWOO_OUTPUT_YUV,
     REWOO_OUTPUT_JPG
 } RewooDecodeOutputFileType;

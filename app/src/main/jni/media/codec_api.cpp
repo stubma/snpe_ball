@@ -56,10 +56,6 @@ int decode_video(
     struct stat buf;
     stat(full_path.c_str(), &buf);
     size_t fileSize = buf.st_size;
-    if (fileSize > kMaxBufferSize) {
-        ALOGE("File size greater than maximum buffer size");
-        return -1;
-    }
     int32_t fd = fileno(inputFp);
     int32_t trackCount = extractor->initExtractor(fd, fileSize);
     if (trackCount <= 0) {
@@ -95,7 +91,7 @@ int decode_video(
             status = extractor->getFrameSample(info);
             if (status || !info.size) break;
             // copy the meta data and buffer to be passed to decoder
-            if (inputBufferOffset + info.size > kMaxBufferSize) {
+            if (inputBufferOffset + info.size > fileSize) {
                 ALOGE("Memory allocated not sufficient");
                 free(inputBuffer);
                 return -1;

@@ -7,11 +7,16 @@
 #include "dlc_runner.h"
 #include "global.h"
 
-static const char short_options[] = "hl:v";
+static const int ARG_VERSION = 'v';
+static const int ARG_DSP_LIB_DIR = 'l';
+static const int ARG_HELP = 'h';
+static const int ARG_DUMP_FORMAT = 'd';
+static const char short_options[] = "d:hl:v";
 static const struct option long_options[] = {
-        {"version", no_argument, NULL, 'v'},
-        {"dsp_library_path", required_argument, NULL, 'l'},
-        {"help", no_argument, NULL, 'h'},
+        {"version", no_argument, NULL, ARG_VERSION},
+        {"dsp_library_path", required_argument, NULL, ARG_DSP_LIB_DIR},
+        {"help", no_argument, NULL, ARG_HELP},
+        {"dump", required_argument, NULL, ARG_DUMP_FORMAT},
         {0, 0, 0, 0}
 };
 
@@ -28,6 +33,7 @@ static void print_usage(int argc, char *argv[]) {
             "Usage: %s [options]\n"
             "Version %s\n"
             "Options:\n"
+            "-d | --dump [yuv|jpg]\t\tdump frame in specified format, can be yuv or jpg\n"
             "-h | --help\t\t\tprint help\n"
             "-l | --dsp_library_path\t\tset ADSP_LIBRARY_PATH environment, default is /vendor/lib\n"
             "-v | --version\t\t\tprint version \n"
@@ -38,18 +44,24 @@ static void print_usage(int argc, char *argv[]) {
 static void process_opt(int argc, char *argv[]) {
     for (;;) {
         int idx;
-        int c;
-        c = getopt_long(argc, argv, short_options, long_options, &idx);
+        int c = getopt_long(argc, argv, short_options, long_options, &idx);
         if (-1 == c)
             break;
         switch (c) {
-            case 'h':
+            case ARG_DUMP_FORMAT:
+                if(!strcmp(optarg, "yuv")) {
+                    g_output_file_type = REWOO_OUTPUT_YUV;
+                } else if(!strcmp(optarg, "jpg")) {
+                    g_output_file_type = REWOO_OUTPUT_JPG;
+                }
+                break;
+            case ARG_HELP:
                 print_usage(argc, argv);
                 exit(EXIT_SUCCESS);
-            case 'v':
+            case ARG_VERSION:
                 print_version();
                 exit(EXIT_SUCCESS);
-            case 'l':
+            case ARG_DSP_LIB_DIR:
                 g_dsp_lib_dir = optarg;
                 setenv(DSP_ENV_VAR, optarg, true);
                 break;
@@ -75,6 +87,7 @@ static void onOutputAvailable(
                 fwrite(buf, sizeof(char), bufferInfo->size, fp);
                 fflush(fp);
                 fclose(fp);
+                ALOGV("bytes(%d) written into file %s", bufferInfo->size, path);
                 break;
             }
             case REWOO_OUTPUT_JPG: {
@@ -83,10 +96,12 @@ static void onOutputAvailable(
                 cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
                 cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
                 cv::imwrite(path, matDst);
+                ALOGV("JPG written into file %s", path);
                 break;
             }
+            default:
+                break;
         }
-        ALOGV("bytes(%d) written into file %s", bufferInfo->size, path);
     }
 }
 

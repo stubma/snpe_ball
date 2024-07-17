@@ -24,7 +24,8 @@
 int32_t Extractor::initExtractor(int32_t fd, size_t fileSize) {
     mStats = new Stats();
 
-    mFrameBuf = (uint8_t *)calloc(kMaxBufferSize, sizeof(uint8_t));
+    _frameBufSize = fileSize;
+    mFrameBuf = (uint8_t *)calloc(fileSize, sizeof(uint8_t));
     if (!mFrameBuf) return -1;
 
     int64_t sTime = mStats->getCurTime();
@@ -58,7 +59,7 @@ void *Extractor::getCSDSample(AMediaCodecBufferInfo &frameInfo, int32_t csdIndex
 }
 
 int32_t Extractor::getFrameSample(AMediaCodecBufferInfo &frameInfo) {
-    int32_t size = AMediaExtractor_readSampleData(mExtractor, mFrameBuf, kMaxBufferSize);
+    int32_t size = AMediaExtractor_readSampleData(mExtractor, mFrameBuf, _frameBufSize);
     if (size < 0) return -1;
 
     frameInfo.flags = AMediaExtractor_getSampleFlags(mExtractor);

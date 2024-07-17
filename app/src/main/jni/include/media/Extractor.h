@@ -60,6 +60,7 @@ class Extractor {
     AMediaExtractor *mExtractor;
     Stats *mStats;
     uint8_t *mFrameBuf;
+    size_t _frameBufSize;
     int64_t mDurationUs;
 };
 
