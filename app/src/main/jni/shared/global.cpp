@@ -20,3 +20,5 @@ std::vector<Point> g_goalnet_points = {
 std::string g_dlc_dir;
 std::string g_dlc_path;
 std::string g_input_list_path;
+bool g_decode_done = false;
+bool g_dlc_done = false;
