@@ -151,8 +151,6 @@ int run_dlc(InputProvider *provider) {
     bool execStatus = false;
     size_t tensorCount = provider->getTensorCount();
     for (size_t i = 0; i < tensorCount; i++) {
-        ALOGD("process tensor %ld", i);
-
         // Load input/output buffers with ITensor
         if (inputTensorNames.size() == 1) {
             // Load input/output buffers with ITensor
