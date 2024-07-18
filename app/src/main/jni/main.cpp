@@ -16,22 +16,30 @@ static const int ARG_VIDEO_WIDTH = 1000;
 static const int ARG_VIDEO_HEIGHT = 1001;
 static const int ARG_OUTPUT_WIDTH = 1002;
 static const int ARG_OUTPUT_HEIGHT = 1003;
+static const int ARG_DLC_PATH = 1004;
+static const int ARG_INPUT_LIST = 1005;
+static const int ARG_VIDEO_PATH = 1006;
 static const char short_options[] = "d:hl:v";
 static const struct option long_options[] = {
-        {"version", no_argument, NULL, ARG_VERSION},
+        {"version",          no_argument,       NULL, ARG_VERSION},
         {"dsp_library_path", required_argument, NULL, ARG_DSP_LIB_DIR},
-        {"help", no_argument, NULL, ARG_HELP},
-        {"dump", required_argument, NULL, ARG_DUMP_FORMAT},
-        {"vw", required_argument, NULL, ARG_VIDEO_WIDTH},
-        {"video_width", required_argument, NULL, ARG_VIDEO_WIDTH},
-        {"vh", required_argument, NULL, ARG_VIDEO_HEIGHT},
-        {"video_height", required_argument, NULL, ARG_VIDEO_HEIGHT},
-        {"ow", required_argument, NULL, ARG_OUTPUT_WIDTH},
-        {"output_width", required_argument, NULL, ARG_OUTPUT_WIDTH},
-        {"oh", required_argument, NULL, ARG_OUTPUT_HEIGHT},
-        {"output_height", required_argument, NULL, ARG_OUTPUT_HEIGHT},
-        {0, 0, 0, 0}
+        {"help",             no_argument,       NULL, ARG_HELP},
+        {"dump",             required_argument, NULL, ARG_DUMP_FORMAT},
+        {"vp",               required_argument, NULL, ARG_VIDEO_PATH},
+        {"video_path",       required_argument, NULL, ARG_VIDEO_PATH},
+        {"vw",               required_argument, NULL, ARG_VIDEO_WIDTH},
+        {"video_width",      required_argument, NULL, ARG_VIDEO_WIDTH},
+        {"vh",               required_argument, NULL, ARG_VIDEO_HEIGHT},
+        {"video_height",     required_argument, NULL, ARG_VIDEO_HEIGHT},
+        {"ow",               required_argument, NULL, ARG_OUTPUT_WIDTH},
+        {"output_width",     required_argument, NULL, ARG_OUTPUT_WIDTH},
+        {"oh",               required_argument, NULL, ARG_OUTPUT_HEIGHT},
+        {"output_height",    required_argument, NULL, ARG_OUTPUT_HEIGHT},
+        {"dlc",              required_argument, NULL, ARG_DLC_PATH},
+        {"input_list",       required_argument, NULL, ARG_INPUT_LIST},
+        {0, 0, 0,                                     0}
 };
+static std::string inputListFileName = "target_raw_list.txt";
 
 static void print_version() {
     DlSystem::Version_t libVer = SNPE::SNPEFactory::getLibraryVersion();
@@ -82,6 +90,9 @@ static void process_opt(int argc, char *argv[]) {
                 g_dsp_lib_dir = optarg;
                 setenv(DSP_ENV_VAR, optarg, true);
                 break;
+            case ARG_VIDEO_PATH:
+                g_video_path = optarg;
+                break;
             case ARG_VIDEO_WIDTH:
                 g_video_width = atoi(optarg);
                 break;
@@ -93,6 +104,13 @@ static void process_opt(int argc, char *argv[]) {
                 break;
             case ARG_OUTPUT_HEIGHT:
                 g_output_height = atoi(optarg);
+                break;
+            case ARG_DLC_PATH:
+                g_dlc_path = optarg;
+                g_dlc_dir = remove_last_path_component(g_dlc_path);
+                break;
+            case ARG_INPUT_LIST:
+                inputListFileName = optarg;
                 break;
             default:
                 break;
@@ -135,19 +153,25 @@ static void onOutputAvailable(
                 cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
                 int32_t cx1 = (g_goalnet_points[2].x + g_goalnet_points[3].x) / 2;
                 int32_t cy1 = (g_goalnet_points[2].y + g_goalnet_points[3].y) / 2;
-                int32_t lx = std::min(g_video_width - g_output_width, std::max(0, cx1 - g_output_width / 2));
-                int32_t ly = std::min(g_video_height - g_output_height, std::max(0, cy1 - g_output_height / 2));
+                int32_t lx = std::min(g_video_width - g_output_width,
+                                      std::max(0, cx1 - g_output_width / 2));
+                int32_t ly = std::min(g_video_height - g_output_height,
+                                      std::max(0, cy1 - g_output_height / 2));
                 cv::Rect roi(lx, ly, g_output_width, g_output_height);
                 cv::Mat crop = matDst(roi);
                 cv::Mat floatCrop;
                 crop.convertTo(floatCrop, CV_32F, 1 / 255.0);
                 FILE *fp = fopen(path, "w+");
-                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), 0, floatCrop.elemSize(), fp);
-                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), sizeof(float32_t), floatCrop.elemSize(), fp);
-                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), sizeof(float32_t) * 2, floatCrop.elemSize(), fp);
+                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), 0,
+                          floatCrop.elemSize(), fp);
+                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(), sizeof(float32_t),
+                          floatCrop.elemSize(), fp);
+                fwrite_ex(floatCrop.data, sizeof(float32_t), floatCrop.total(),
+                          sizeof(float32_t) * 2, floatCrop.elemSize(), fp);
                 fflush(fp);
                 fclose(fp);
-                ALOGV("bytes(%lu) written into file %s", floatCrop.total() * floatCrop.elemSize(), path);
+                ALOGV("bytes(%lu) written into file %s", floatCrop.total() * floatCrop.elemSize(),
+                      path);
                 break;
             }
             default:
@@ -183,7 +207,16 @@ int main(int argc, char *argv[]) {
 //            &cb,
 //            nullptr);
 
-    run_dlc(new RawListProvider("/data/local/tmp/ball_v2/target_raw_list.txt"));
+    // 如果指定了模型路径, 则进入模型运行逻辑
+    if(!g_dlc_path.empty()) {
+        // 如果指定了视频路径,则使用视频解码作为输入,否则使用input list作为输入列表
+        if(g_video_path.empty()) {
+            g_input_list_path = g_dlc_dir + "/" + inputListFileName;
+            run_dlc(new RawListProvider(g_input_list_path));
+        } else {
+
+        }
+    }
 
     // ok
     return EXIT_SUCCESS;

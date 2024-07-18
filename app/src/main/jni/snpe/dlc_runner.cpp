@@ -135,8 +135,6 @@ int run_dlc(InputProvider *provider) {
     if (usingInitCaching) {
         if (container->save(CONTAINER_PATH)) {
             printf("Saved container into archive successfully\n");
-        } else {
-            printf("Failed to save container into archive\n");
         }
     }
 
