@@ -126,9 +126,19 @@ int run_dlc(InputProvider *provider) {
     DlSystem::RuntimeList runtimeList;
     runtimeList.add(runtime);
     DlSystem::PlatformConfig platformConfig;
+    bool usingInitCaching = true;
     std::unique_ptr<SNPE::SNPE> snpe = setBuilderOptions(container, runtime, runtimeList,
                                                          false, platformConfig,
-                                                         false);
+                                                         usingInitCaching);
+
+    // if caching enabled, save container
+    if (usingInitCaching) {
+        if (container->save(CONTAINER_PATH)) {
+            printf("Saved container into archive successfully\n");
+        } else {
+            printf("Failed to save container into archive\n");
+        }
+    }
 
     // Check the batch size for the container
     // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
