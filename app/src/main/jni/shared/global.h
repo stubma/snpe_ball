@@ -22,3 +22,5 @@ extern int32_t g_video_height;
 extern int32_t g_output_width;
 extern int32_t g_output_height;
 extern std::vector<Point> g_goalnet_points;
+extern std::string g_dlc_dir;
+extern std::string g_dlc_path;

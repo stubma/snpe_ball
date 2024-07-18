@@ -16,3 +16,5 @@ std::vector<Point> g_goalnet_points = {
         {1168, 543},
         {1381, 521}
 };
+std::string g_dlc_dir;
+std::string g_dlc_path;

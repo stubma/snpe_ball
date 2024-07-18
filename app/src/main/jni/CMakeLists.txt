@@ -44,6 +44,7 @@ include_directories(
         .
         snpe
         media
+        shared
         include
         include/SNPE
         include/SNPE/DiagLog

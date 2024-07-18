@@ -135,6 +135,7 @@ int run_dlc(InputProvider *provider) {
     // is the batch size.
     size_t batchSize = 1;
     dumpModel(snpe, &batchSize);
+    provider->setupProvider(batchSize);
 
     // profile
     std::chrono::milliseconds networkCost = std::chrono::milliseconds(0);
@@ -150,6 +151,8 @@ int run_dlc(InputProvider *provider) {
     bool execStatus = false;
     size_t tensorCount = provider->getTensorCount();
     for (size_t i = 0; i < tensorCount; i++) {
+        ALOGD("process tensor %ld", i);
+
         // Load input/output buffers with ITensor
         if (inputTensorNames.size() == 1) {
             // Load input/output buffers with ITensor
@@ -168,7 +171,7 @@ int run_dlc(InputProvider *provider) {
             frames += batchSize;
         } else {
             // Load input/output buffers with TensorMap
-            DlSystem::TensorMap inputTensorMap = provider->getTensorMap(snpe);
+            DlSystem::TensorMap inputTensorMap = provider->getTensorMap(snpe, i);
 
             // Execute the multiple input tensorMap on the model with SNPE
             const auto start = std::chrono::high_resolution_clock::now();
@@ -196,6 +199,9 @@ int run_dlc(InputProvider *provider) {
 
     // Freeing of snpe object
     snpe.reset();
+
+    // release provider
+    delete provider;
 
     // ok
     return EXIT_SUCCESS;

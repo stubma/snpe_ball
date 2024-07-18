@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include "dlc_runner.h"
 #include "shared/global.h"
+#include "raw_list_provider.h"
 
 static const int ARG_VERSION = 'v';
 static const int ARG_DSP_LIB_DIR = 'l';
@@ -167,20 +168,22 @@ int main(int argc, char *argv[]) {
         mkdirs(g_output_dir.c_str());
     }
 
-    RewooDecoderCallback cb{
-            nullptr,
-            onOutputAvailable,
-            nullptr,
-            nullptr
-    };
-    decode_video(
-            "/data/local/tmp/MediaBenchmark/res/",
-            "rewoo_full.mp4",
-            "/data/local/tmp/decoder.stat",
-            "c2.qti.avc.decoder",
-            false,
-            &cb,
-            nullptr);
+//    RewooDecoderCallback cb{
+//            nullptr,
+//            onOutputAvailable,
+//            nullptr,
+//            nullptr
+//    };
+//    decode_video(
+//            "/data/local/tmp/MediaBenchmark/res/",
+//            "rewoo_full.mp4",
+//            "/data/local/tmp/decoder.stat",
+//            "c2.qti.avc.decoder",
+//            false,
+//            &cb,
+//            nullptr);
+
+    run_dlc(new RawListProvider("/data/local/tmp/ball_v2/target_raw_list.txt"));
 
     // ok
     return EXIT_SUCCESS;

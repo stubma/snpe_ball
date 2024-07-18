@@ -100,3 +100,26 @@ size_t fwrite_ex(
     // success
     return ret;
 }
+
+std::string last_path_component(std::string p) {
+    std::size_t pos = p.rfind("/");
+    if(pos == std::string::npos) {
+        return p;
+    } else {
+        return p.substr(pos + 1);
+    }
+}
+
+std::string remove_last_path_component(std::string p) {
+    std::size_t pos = p.rfind("/");
+    if(pos == std::string::npos) {
+        return p;
+    } else {
+        std::string d = p.substr(0, pos);
+        if(d.empty()) {
+            return p;
+        } else {
+            return d;
+        }
+    }
+}

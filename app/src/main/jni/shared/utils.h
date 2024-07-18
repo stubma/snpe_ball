@@ -19,3 +19,5 @@ size_t fwrite_ex(
         size_t offset,
         size_t stride,
         FILE* stream);
+std::string last_path_component(std::string p);
+std::string remove_last_path_component(std::string p);
