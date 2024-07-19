@@ -4,9 +4,7 @@
 #include "codec_api.h"
 #include "shared/utils.h"
 #include <opencv2/opencv.hpp>
-#include "dlc_runner.h"
 #include "shared/global.h"
-#include "raw_list_provider.h"
 #include "tensor_producer.h"
 #include "tensor_consumer.h"
 #include <linux/limits.h>
@@ -219,28 +217,28 @@ int main(int argc, char *argv[]) {
     // handle arguments
     process_opt(argc, argv);
 
+    // check video path
+    if(!is_file_exists(g_video_path)) {
+        ALOGD("video file %s doesn't not exist", g_video_path.c_str());
+        return EXIT_FAILURE;
+    }
+
     // 如果指定了模型路径, 则进入模型运行逻辑
     // 如果没有指定模型路径, 则进入视频解码测试逻辑
     if (!g_dlc_path.empty()) {
-        // 如果指定了视频路径,则使用视频解码作为输入,否则使用input list作为输入列表
-        if (g_video_path.empty()) {
-            g_input_list_path = g_dlc_dir + "/" + inputListFileName;
-            run_dlc(new RawListProvider(g_input_list_path));
-        } else {
-            // run consumer
-            TensorConsumer c;
+        // run consumer
+        TensorConsumer c;
 
-            // run producer
-            TensorProducer p(&c);
-            p.run();
+        // run producer
+        TensorProducer p(&c);
+        p.run();
 
-            // run consumer
-            c.run();
+        // run consumer
+        c.run();
 
-            // wait done
-            while (!g_decode_done || !g_dlc_done) {
-                sleep(1);
-            }
+        // wait done
+        while (!g_decode_done || !g_dlc_done) {
+            sleep(1);
         }
     } else {
         // ensure output dir exist
@@ -256,10 +254,9 @@ int main(int argc, char *argv[]) {
                 nullptr
         };
         decode_video(
-                "/data/local/tmp/MediaBenchmark/res/",
-                "rewoo_full.mp4",
+                g_video_path,
                 "/data/local/tmp/decoder.stat",
-                "c2.qti.avc.decoder",
+                g_video_codec,
                 false,
                 &cb,
                 nullptr);

@@ -17,6 +17,7 @@
 //#define LOG_NDEBUG 0
 #define LOG_TAG "NativeDecoder"
 
+#include "utils.h"
 #include <jni.h>
 #include <fstream>
 #include <stdio.h>
@@ -30,20 +31,18 @@
 #include "Timers.h"
 
 int decode_video(
-        std::string file_path,
-        std::string file_name,
+        std::string video_path,
         std::string stat_path,
         std::string codec,
         bool async,
         RewooDecoderCallback* cb,
         void* cbUserData) {
-    string full_path = file_path + file_name;
-    FILE *inputFp = fopen(full_path.c_str(), "rb");
+    FILE *inputFp = fopen(video_path.c_str(), "rb");
     if (!inputFp) {
         ALOGE("Unable to open input file for reading");
         return -1;
     }
-    ALOGD("start native decode file: %s", full_path.c_str());
+    ALOGD("start native decode file: %s", video_path.c_str());
 
     Decoder *decoder = new Decoder();
     Extractor *extractor = decoder->getExtractor();
@@ -54,7 +53,7 @@ int decode_video(
 
     // Read file properties
     struct stat buf;
-    stat(full_path.c_str(), &buf);
+    stat(video_path.c_str(), &buf);
     size_t fileSize = buf.st_size;
     int32_t fd = fileno(inputFp);
     int32_t trackCount = extractor->initExtractor(fd, fileSize);
@@ -121,18 +120,12 @@ int decode_video(
               nanoseconds_to_milliseconds(decodeTime / frameInfo.size()));
 
         decoder->deInitCodec();
-        decoder->dumpStatistics(file_name, codec, (async ? "async" : "sync"),
+        decoder->dumpStatistics(last_path_component(video_path), codec, (async ? "async" : "sync"),
                                 stat_path);
-        if (inputBuffer) {
-            free(inputBuffer);
-            inputBuffer = nullptr;
-        }
+        free(inputBuffer);
         decoder->resetDecoder();
     }
-    if (inputFp) {
-        fclose(inputFp);
-        inputFp = nullptr;
-    }
+    fclose(inputFp);
     extractor->deInitExtractor();
     delete decoder;
     ALOGD("native decode done");
