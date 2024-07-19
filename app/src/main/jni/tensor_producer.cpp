@@ -3,12 +3,14 @@
 #include "log.h"
 #include <opencv2/opencv.hpp>
 #include "utils.h"
+#include "tensor_consumer.h"
 
-TensorProducer::TensorProducer(int32_t batchSize) {
+TensorProducer::TensorProducer(TensorConsumer* c) {
     // init
     _buffer = nullptr;
     _decoder = nullptr;
-    _batch_size = batchSize;
+    _consumer = c;
+    _batch_size = c->getBatchSize();
 
     // open video file
     _video_fp = fopen(g_video_path.c_str(), "rb");
@@ -156,8 +158,7 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
 
         // put to queue
         if(_pending_batch.size() >= _batch_size) {
-            std::unique_lock<std::mutex> lock(_mutex);
-            _batch_queue.push_back(std::move(_pending_batch));
+            _consumer->push(_pending_batch);
             _pending_batch = std::vector<std::vector<float>>();
             _pending_batch.push_back(std::move(raw));
         } else {
@@ -179,6 +180,15 @@ void TensorProducer::loop() {
 
     // decode loop
     _decoder->decode(_buffer, _frame_infos, g_video_codec, false);
+
+    // last batch
+    if(!_pending_batch.empty()) {
+        _consumer->push(_pending_batch);
+    }
+
+    // empty batch means no more
+    _pending_batch = std::vector<std::vector<float>>();
+    _consumer->push(_pending_batch);
 
     // set flag
     g_decode_done = true;

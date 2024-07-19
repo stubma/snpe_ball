@@ -72,19 +72,19 @@ std::string getRuntimeStr() {
     }
 }
 
-void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, size_t *batchSize) {
+void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, SNPEMeta& meta) {
     DlSystem::TensorShape tensorShape;
     tensorShape = snpe->getInputDimensions();
     const size_t *dims = tensorShape.getDimensions();
     printf("model input dimensions: ");
     for (int i = 0; i < tensorShape.rank(); i++) {
         if (i == 0) {
-            *batchSize = dims[i];
+            meta.batch_size = dims[i];
         }
         printf("%d ", dims[i]);
     }
     printf("\n");
-    printf("Batch size for the container is %ld\n", *batchSize);
+    printf("Batch size for the container is %ld\n", meta.batch_size);
 
     // dump input tensors
     const auto &inputNamesOpt = snpe->getInputTensorNames();
@@ -110,6 +110,7 @@ void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, size_t *batchSize) {
     const auto &outputNamesOpt = snpe->getOutputTensorNames();
     if (!outputNamesOpt) throw std::runtime_error("Error obtaining output tensor names");
     const DlSystem::StringList &outputNames = *outputNamesOpt;
+    meta.output_names = outputNames;
     for (const char *name: outputNames) {
         auto attrs = snpe->getInputOutputBufferAttributes(name);
         if (!attrs)
@@ -118,10 +119,13 @@ void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, size_t *batchSize) {
 
         printf("model output tensor(%s) dimensions: ", name);
         const DlSystem::TensorShape &bufferShape = (*attrs)->getDims();
+        meta.output_shapes.push_back(bufferShape);
         const size_t *dims = bufferShape.getDimensions();
         for (int i = 0; i < bufferShape.rank(); i++) {
             printf("%d ", dims[i]);
         }
+        meta.output_element_sizes.push_back((*attrs)->getElementSize());
+        meta.output_element_types.push_back((*attrs)->getEncodingType());
         printf(", element size: %lu", (*attrs)->getElementSize());
         printf(", element type: %s\n", elementTypeStr((*attrs)->getEncodingType()).c_str());
     }

@@ -81,9 +81,9 @@ int run_dlc(InputProvider *provider) {
     // Check the batch size for the container
     // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
     // is the batch size.
-    size_t batchSize = 1;
-    dumpModel(snpe, &batchSize);
-    provider->setupProvider(batchSize);
+    SNPEMeta meta;
+    dumpModel(snpe, meta);
+    provider->setupProvider(meta.batch_size);
 
     // profile
     std::chrono::milliseconds networkCost = std::chrono::milliseconds(0);
@@ -114,7 +114,7 @@ int run_dlc(InputProvider *provider) {
             const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                     end - start);
             networkCost += int_ms;
-            frames += batchSize;
+            frames += meta.batch_size;
         } else {
             // Load input/output buffers with TensorMap
             DlSystem::TensorMap inputTensorMap = provider->getTensorMap(snpe, i);
@@ -126,11 +126,11 @@ int run_dlc(InputProvider *provider) {
             const std::chrono::milliseconds int_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                     end - start);
             networkCost += int_ms;
-            frames += batchSize;
+            frames += meta.batch_size;
         }
         // Save the execution results if execution successful
         if (execStatus) {
-            if (!saveOutput(outputTensorMap, OUTPUT_DIR, i * batchSize, batchSize)) {
+            if (!saveOutput(outputTensorMap, OUTPUT_DIR, i * meta.batch_size, meta.batch_size)) {
                 return EXIT_FAILURE;
             }
         } else {
