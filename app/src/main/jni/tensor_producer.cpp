@@ -132,10 +132,12 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
     size_t bufSize;
     uint8_t *buf = AMediaCodec_getOutputBuffer(codec, index, &bufSize);
     if (buf && bufferInfo->size > 0) {
-        // convert yuv to rgb and crop it
+        // convert yuv to rgb
         cv::Mat matSrc = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
         cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
         cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
+
+        // crop by goal net position
         int32_t cx1 = (g_goalnet_points[2].x + g_goalnet_points[3].x) / 2;
         int32_t cy1 = (g_goalnet_points[2].y + g_goalnet_points[3].y) / 2;
         int32_t lx = std::min(g_video_width - g_output_width,
@@ -144,6 +146,8 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
                               std::max(0, cy1 - g_output_height / 2));
         cv::Rect roi(lx, ly, g_output_width, g_output_height);
         cv::Mat crop = matDst(roi);
+
+        // normalization: convert rgb int to float
         cv::Mat floatCrop;
         crop.convertTo(floatCrop, CV_32F, 1 / 255.0);
 
