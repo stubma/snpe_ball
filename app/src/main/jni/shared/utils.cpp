@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "log.h"
+#include "Util.hpp"
 
 void mkdirs(const char* buf) {
     char tmp[256];
@@ -71,6 +72,61 @@ std::string getRuntimeStr() {
     }
 }
 
+void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, size_t *batchSize) {
+    DlSystem::TensorShape tensorShape;
+    tensorShape = snpe->getInputDimensions();
+    const size_t *dims = tensorShape.getDimensions();
+    printf("model input dimensions: ");
+    for (int i = 0; i < tensorShape.rank(); i++) {
+        if (i == 0) {
+            *batchSize = dims[i];
+        }
+        printf("%d ", dims[i]);
+    }
+    printf("\n");
+    printf("Batch size for the container is %ld\n", *batchSize);
+
+    // dump input tensors
+    const auto &inputNamesOpt = snpe->getInputTensorNames();
+    if (!inputNamesOpt) throw std::runtime_error("Error obtaining input tensor names");
+    const DlSystem::StringList &inputNames = *inputNamesOpt;
+    for (const char *name: inputNames) {
+        auto attrs = snpe->getInputOutputBufferAttributes(name);
+        if (!attrs)
+            throw std::runtime_error(
+                    std::string("Error obtaining attributes for input tensor ") + name);
+
+        printf("model input tensor(%s) dimensions: ", name);
+        const DlSystem::TensorShape &bufferShape = (*attrs)->getDims();
+        const size_t *dims = bufferShape.getDimensions();
+        for (int i = 0; i < bufferShape.rank(); i++) {
+            printf("%d ", dims[i]);
+        }
+        printf(", element size: %lu", (*attrs)->getElementSize());
+        printf(", element type: %s\n", elementTypeStr((*attrs)->getEncodingType()).c_str());
+    }
+
+    // dump output tensors
+    const auto &outputNamesOpt = snpe->getOutputTensorNames();
+    if (!outputNamesOpt) throw std::runtime_error("Error obtaining output tensor names");
+    const DlSystem::StringList &outputNames = *outputNamesOpt;
+    for (const char *name: outputNames) {
+        auto attrs = snpe->getInputOutputBufferAttributes(name);
+        if (!attrs)
+            throw std::runtime_error(
+                    std::string("Error obtaining attributes for output tensor ") + name);
+
+        printf("model output tensor(%s) dimensions: ", name);
+        const DlSystem::TensorShape &bufferShape = (*attrs)->getDims();
+        const size_t *dims = bufferShape.getDimensions();
+        for (int i = 0; i < bufferShape.rank(); i++) {
+            printf("%d ", dims[i]);
+        }
+        printf(", element size: %lu", (*attrs)->getElementSize());
+        printf(", element type: %s\n", elementTypeStr((*attrs)->getEncodingType()).c_str());
+    }
+}
+
 size_t fwrite_ex(
         const void* ptr,
         size_t size,
@@ -99,6 +155,21 @@ size_t fwrite_ex(
 
     // success
     return ret;
+}
+
+void memcpy_ex(void* dst, const void* src, size_t size, size_t nitems, size_t offset, size_t stride) {
+    if(stride == 0) {
+        memcpy(dst, (uint8_t*)src + offset, size * nitems);
+    } else {
+        uint8_t* from = (uint8_t*)src;
+        uint8_t* to = (uint8_t*)dst;
+        from += offset;
+        for(size_t i = 0; i < nitems; i++) {
+            memcpy(to, from, size);
+            from += stride;
+            to += size;
+        }
+    }
 }
 
 std::string last_path_component(std::string p) {

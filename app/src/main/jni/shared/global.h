@@ -30,6 +30,7 @@ extern int32_t g_output_height;
 extern std::string g_video_path;
 extern int32_t g_video_width;
 extern int32_t g_video_height;
+extern std::string g_video_codec;
 
 // 左球门坐标
 extern std::vector<Point> g_goalnet_points;

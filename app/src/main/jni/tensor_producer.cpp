@@ -1,0 +1,185 @@
+#include "tensor_producer.h"
+#include "global.h"
+#include "log.h"
+#include <opencv2/opencv.hpp>
+#include "utils.h"
+
+TensorProducer::TensorProducer(int32_t batchSize) {
+    // init
+    _buffer = nullptr;
+    _decoder = nullptr;
+    _batch_size = batchSize;
+
+    // open video file
+    _video_fp = fopen(g_video_path.c_str(), "rb");
+    if (!_video_fp) {
+        ALOGE("Unable to open video file: %s", g_video_path.c_str());
+        return;
+    }
+
+    // create decoder
+    _decoder = new Decoder();
+    Extractor *extractor = _decoder->getExtractor();
+    if (!extractor) {
+        ALOGE("Extractor creation failed");
+        return;
+    }
+
+    // get track count
+    struct stat buf;
+    stat(g_video_path.c_str(), &buf);
+    size_t fileSize = buf.st_size;
+    int32_t fd = fileno(_video_fp);
+    int32_t trackCount = extractor->initExtractor(fd, fileSize);
+    if (trackCount <= 0) {
+        ALOGE("initExtractor failed");
+        return;
+    }
+
+    // allocate video buffer
+    _buffer = (uint8_t *) malloc(fileSize);
+    if (!_buffer) {
+        ALOGE("Insufficient memory");
+        return;
+    }
+
+    // load frames into buffer
+    for (int curTrack = 0; curTrack < trackCount; curTrack++) {
+        // get track format
+        int32_t status = extractor->setupTrackFormat(curTrack);
+        if (status != 0) {
+            ALOGE("Track Format invalid");
+            return;
+        }
+
+        // skip audio track
+        AMediaFormat *format = extractor->getFormat();
+        const char *mimeType = nullptr;
+        AMediaFormat_getString(format, AMEDIAFORMAT_KEY_MIME, &mimeType);
+        if (!strncmp(mimeType, "audio/", 6)) {
+            ALOGD("can not decode audio now, skip audio track");
+            continue;
+        }
+
+        // Get frame data
+        AMediaCodecBufferInfo info;
+        uint32_t inputBufferOffset = 0;
+        while (true) {
+            status = extractor->getFrameSample(info);
+            if (status || !info.size) break;
+            // copy the meta data and buffer to be passed to decoder
+            if (inputBufferOffset + info.size > fileSize) {
+                ALOGE("Memory allocated not sufficient");
+                return;
+            }
+            memcpy(_buffer + inputBufferOffset, extractor->getFrameBuf(), info.size);
+            _frame_infos.push_back(info);
+            inputBufferOffset += info.size;
+        }
+
+        // video data is read, so no need continue, we only read one video track
+        break;
+    }
+}
+
+TensorProducer::~TensorProducer() {
+    stop();
+
+    // close video file
+    if (_video_fp) {
+        fclose(_video_fp);
+        _video_fp = nullptr;
+    }
+
+    // release
+    if (_buffer) {
+        free(_buffer);
+        _buffer = nullptr;
+    }
+    if (_decoder) {
+        _decoder->getExtractor()->deInitExtractor();
+        delete _decoder;
+        _decoder = nullptr;
+    }
+}
+
+void TensorProducer::run() {
+    _t = std::thread(
+            [this] {
+                loop();
+            }
+    );
+}
+
+void TensorProducer::stop() {
+    _t.detach();
+}
+
+static void onOutputAvailable(
+        AMediaCodec *codec,
+        Decoder *decoder,
+        int32_t index,
+        AMediaCodecBufferInfo *bufferInfo) {
+    TensorProducer *thiz = (TensorProducer *) decoder->getCallbackUserData();
+    thiz->onOutputAvailable(codec, index, bufferInfo);
+}
+
+void TensorProducer::onOutputAvailable(AMediaCodec *codec,
+                                       int32_t index,
+                                       AMediaCodecBufferInfo *bufferInfo) {
+    size_t bufSize;
+    uint8_t *buf = AMediaCodec_getOutputBuffer(codec, index, &bufSize);
+    if (buf && bufferInfo->size > 0) {
+        // convert yuv to rgb and crop it
+        cv::Mat matSrc = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
+        cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
+        cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
+        int32_t cx1 = (g_goalnet_points[2].x + g_goalnet_points[3].x) / 2;
+        int32_t cy1 = (g_goalnet_points[2].y + g_goalnet_points[3].y) / 2;
+        int32_t lx = std::min(g_video_width - g_output_width,
+                              std::max(0, cx1 - g_output_width / 2));
+        int32_t ly = std::min(g_video_height - g_output_height,
+                              std::max(0, cy1 - g_output_height / 2));
+        cv::Rect roi(lx, ly, g_output_width, g_output_height);
+        cv::Mat crop = matDst(roi);
+        cv::Mat floatCrop;
+        crop.convertTo(floatCrop, CV_32F, 1 / 255.0);
+
+        // write interleaved data in planar format
+        std::vector<float> raw(g_output_height * g_output_width * 3);
+        memcpy_ex(raw.data(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
+                  0, floatCrop.elemSize());
+        memcpy_ex(raw.data(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
+                  sizeof(float32_t), floatCrop.elemSize());
+        memcpy_ex(raw.data(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
+                  sizeof(float32_t) * 2, floatCrop.elemSize());
+
+        // put to queue
+        if(_pending_batch.size() >= _batch_size) {
+            std::unique_lock<std::mutex> lock(_mutex);
+            _batch_queue.push_back(std::move(_pending_batch));
+            _pending_batch = std::vector<std::vector<float>>();
+            _pending_batch.push_back(std::move(raw));
+        } else {
+            _pending_batch.push_back(std::move(raw));
+        }
+    }
+}
+
+void TensorProducer::loop() {
+    // setup decoder
+    RewooDecoderCallback cb{
+            nullptr,
+            ::onOutputAvailable,
+            nullptr,
+            nullptr
+    };
+    _decoder->setupDecoder();
+    _decoder->setCallback(&cb, this);
+
+    // decode loop
+    _decoder->decode(_buffer, _frame_infos, g_video_codec, false);
+
+    // set flag
+    g_decode_done = true;
+}

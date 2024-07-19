@@ -1,12 +1,19 @@
 #include <getopt.h>
 #include <stdio.h>
-#include "shared/log.h"
+#include "log.h"
 #include "codec_api.h"
 #include "shared/utils.h"
 #include <opencv2/opencv.hpp>
 #include "dlc_runner.h"
 #include "shared/global.h"
 #include "raw_list_provider.h"
+#include "tensor_producer.h"
+#include "IDlContainer.hpp"
+#include "SNPE.hpp"
+#include "SNPEFactory.hpp"
+#include "SNPEBuilder.hpp"
+#include "SetBuilderOptions.hpp"
+#include "LoadContainer.hpp"
 
 static const int ARG_VERSION = 'v';
 static const int ARG_DSP_LIB_DIR = 'l';
@@ -180,6 +187,43 @@ static void onOutputAvailable(
     }
 }
 
+static std::unique_ptr<SNPE::SNPE> loadModel() {
+    // print available runtime
+    DlSystem::Runtime_t runtime = checkRuntime();
+    switch (runtime) {
+        case DlSystem::Runtime_t::GPU:
+            ALOGD("Available runtime: GPU");
+            break;
+        case DlSystem::Runtime_t::CPU:
+            ALOGD("Available runtime: CPU");
+            break;
+        case DlSystem::Runtime_t::DSP:
+            ALOGD("Available runtime: DSP");
+            break;
+        default:
+            ALOGD("Available runtime: Unsupported, can not proceed");
+            return nullptr;
+    }
+
+    // load container
+    std::unique_ptr<DlContainer::IDlContainer> container = loadContainerFromFile(g_dlc_path);
+    if (container == nullptr) {
+        ALOGD("failed to load container, can not proceed");
+        return nullptr;
+    } else {
+        ALOGD("container loaded: %p", container.get());
+    }
+
+    // set builder
+    DlSystem::RuntimeList runtimeList;
+    runtimeList.add(runtime);
+    DlSystem::PlatformConfig platformConfig;
+    bool usingInitCaching = true;
+    return setBuilderOptions(container, runtime, runtimeList,
+                             false, platformConfig,
+                             usingInitCaching);
+}
+
 int main(int argc, char *argv[]) {
     // set dsp library path so that runtime can use dsp
     setenv(DSP_ENV_VAR, DEFAULT_DSP_LIB_DIR, true);
@@ -187,34 +231,32 @@ int main(int argc, char *argv[]) {
     // handle arguments
     process_opt(argc, argv);
 
-    // ensure output dir exist
-    if (!g_output_dir.empty() && !is_directory(g_output_dir)) {
-        mkdirs(g_output_dir.c_str());
-    }
-
-//    RewooDecoderCallback cb{
-//            nullptr,
-//            onOutputAvailable,
-//            nullptr,
-//            nullptr
-//    };
-//    decode_video(
-//            "/data/local/tmp/MediaBenchmark/res/",
-//            "rewoo_full.mp4",
-//            "/data/local/tmp/decoder.stat",
-//            "c2.qti.avc.decoder",
-//            false,
-//            &cb,
-//            nullptr);
-
     // 如果指定了模型路径, 则进入模型运行逻辑
-    if(!g_dlc_path.empty()) {
+    if (!g_dlc_path.empty()) {
         // 如果指定了视频路径,则使用视频解码作为输入,否则使用input list作为输入列表
-        if(g_video_path.empty()) {
+        if (g_video_path.empty()) {
             g_input_list_path = g_dlc_dir + "/" + inputListFileName;
             run_dlc(new RawListProvider(g_input_list_path));
         } else {
+            // load dlc
+            std::unique_ptr<SNPE::SNPE> snpe = loadModel();
 
+            // Check the batch size for the container
+            // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
+            // is the batch size.
+            size_t batchSize = 1;
+            dumpModel(snpe, &batchSize);
+
+            // run producer
+            TensorProducer p(batchSize);
+            p.run();
+
+            // run consumer
+
+            // wait done
+            while (!g_decode_done || !g_dlc_done) {
+                sleep(1);
+            }
         }
     }
 
