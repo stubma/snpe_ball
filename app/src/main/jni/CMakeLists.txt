@@ -11,6 +11,7 @@ PROJECT(hexagon)
 aux_source_directory(./ SRCS)
 aux_source_directory(./snpe SRCS)
 aux_source_directory(./media SRCS)
+aux_source_directory(./param SRCS)
 aux_source_directory(./shared SRCS)
 
 # libSnpeHtpV73Skel.so只有armv7的版本, 而其他库都是arm64的, 所以目前没有办法
@@ -44,6 +45,7 @@ include_directories(
         .
         snpe
         media
+        param
         shared
         include
         include/SNPE

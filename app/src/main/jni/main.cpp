@@ -8,6 +8,7 @@
 #include "tensor_producer.h"
 #include "tensor_consumer.h"
 #include <linux/limits.h>
+#include "param.h"
 
 static const int ARG_VERSION = 'v';
 static const int ARG_DSP_LIB_DIR = 'l';
