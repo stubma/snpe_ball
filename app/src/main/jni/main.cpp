@@ -22,25 +22,27 @@ static const int ARG_OUTPUT_HEIGHT = 1003;
 static const int ARG_DLC_PATH = 1004;
 static const int ARG_INPUT_LIST = 1005;
 static const int ARG_VIDEO_PATH = 1006;
+static const int ARG_OUTPUT_DIR = 1007;
 static const char short_options[] = "d:hl:v";
 static const struct option long_options[] = {
-        {"version",          no_argument,       NULL, ARG_VERSION},
+        {"version", no_argument, NULL, ARG_VERSION},
         {"dsp_library_path", required_argument, NULL, ARG_DSP_LIB_DIR},
-        {"help",             no_argument,       NULL, ARG_HELP},
-        {"dump",             required_argument, NULL, ARG_DUMP_FORMAT},
-        {"vp",               required_argument, NULL, ARG_VIDEO_PATH},
-        {"video_path",       required_argument, NULL, ARG_VIDEO_PATH},
-        {"vw",               required_argument, NULL, ARG_VIDEO_WIDTH},
-        {"video_width",      required_argument, NULL, ARG_VIDEO_WIDTH},
-        {"vh",               required_argument, NULL, ARG_VIDEO_HEIGHT},
-        {"video_height",     required_argument, NULL, ARG_VIDEO_HEIGHT},
-        {"ow",               required_argument, NULL, ARG_OUTPUT_WIDTH},
-        {"output_width",     required_argument, NULL, ARG_OUTPUT_WIDTH},
-        {"oh",               required_argument, NULL, ARG_OUTPUT_HEIGHT},
-        {"output_height",    required_argument, NULL, ARG_OUTPUT_HEIGHT},
-        {"dlc",              required_argument, NULL, ARG_DLC_PATH},
-        {"input_list",       required_argument, NULL, ARG_INPUT_LIST},
-        {0, 0, 0,                                     0}
+        {"help", no_argument, NULL, ARG_HELP},
+        {"dump", required_argument, NULL, ARG_DUMP_FORMAT},
+        {"vp", required_argument, NULL, ARG_VIDEO_PATH},
+        {"video_path", required_argument, NULL, ARG_VIDEO_PATH},
+        {"vw", required_argument, NULL, ARG_VIDEO_WIDTH},
+        {"video_width", required_argument, NULL, ARG_VIDEO_WIDTH},
+        {"vh", required_argument, NULL, ARG_VIDEO_HEIGHT},
+        {"video_height", required_argument, NULL, ARG_VIDEO_HEIGHT},
+        {"ow", required_argument, NULL, ARG_OUTPUT_WIDTH},
+        {"output_width", required_argument, NULL, ARG_OUTPUT_WIDTH},
+        {"oh", required_argument, NULL, ARG_OUTPUT_HEIGHT},
+        {"output_height", required_argument, NULL, ARG_OUTPUT_HEIGHT},
+        {"dlc", required_argument, NULL, ARG_DLC_PATH},
+        {"input_list", required_argument, NULL, ARG_INPUT_LIST},
+        {"output_path", required_argument, NULL, ARG_OUTPUT_DIR},
+        {0, 0, 0, 0}
 };
 static std::string inputListFileName = "target_raw_list.txt";
 
@@ -91,7 +93,7 @@ static void process_opt(int argc, char *argv[]) {
                 exit(EXIT_SUCCESS);
             case ARG_DSP_LIB_DIR:
                 g_dsp_lib_dir = optarg;
-                if(!starts_with(g_dsp_lib_dir, "/")) {
+                if (!starts_with(g_dsp_lib_dir, "/")) {
                     g_dsp_lib_dir = g_cwd + "/" + g_dsp_lib_dir;
                 }
                 ALOGD("change dsp lib dir to: %s", g_dsp_lib_dir.c_str());
@@ -99,7 +101,7 @@ static void process_opt(int argc, char *argv[]) {
                 break;
             case ARG_VIDEO_PATH:
                 g_video_path = optarg;
-                if(!starts_with(g_video_path, "/")) {
+                if (!starts_with(g_video_path, "/")) {
                     g_video_path = g_cwd + "/" + g_video_path;
                 }
                 break;
@@ -117,13 +119,19 @@ static void process_opt(int argc, char *argv[]) {
                 break;
             case ARG_DLC_PATH:
                 g_dlc_path = optarg;
-                if(!starts_with(g_dlc_path, "/")) {
+                if (!starts_with(g_dlc_path, "/")) {
                     g_dlc_path = g_cwd + "/" + g_dlc_path;
                 }
                 g_dlc_dir = remove_last_path_component(g_dlc_path);
                 break;
             case ARG_INPUT_LIST:
                 inputListFileName = optarg;
+                break;
+            case ARG_OUTPUT_DIR:
+                g_output_dir = optarg;
+                if (!starts_with(g_output_dir, "/")) {
+                    g_output_dir = g_cwd + "/" + g_output_dir;
+                }
                 break;
             default:
                 break;
@@ -198,7 +206,8 @@ int main(int argc, char *argv[]) {
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         g_cwd = cwd;
-        if(!starts_with(g_dsp_lib_dir, "/")) {
+        g_output_dir = g_cwd + "/output";
+        if (!starts_with(g_dsp_lib_dir, "/")) {
             g_dsp_lib_dir = g_cwd + "/" + g_dsp_lib_dir;
         }
         ALOGD("current directory: %s, dsp lib dir: %s", g_cwd.c_str(), g_dsp_lib_dir.c_str());

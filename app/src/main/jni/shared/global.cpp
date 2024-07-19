@@ -3,7 +3,7 @@
 
 std::string g_cwd = ".";
 const char* DSP_ENV_VAR = "ADSP_LIBRARY_PATH";
-std::string g_output_dir = "/data/local/tmp/decode_output";
+std::string g_output_dir = "decode_output";
 std::string g_dsp_lib_dir = "lib";
 RewooDecodeOutputFileType g_output_file_type = REWOO_OUTPUT_NONE;
 std::string g_video_path;
