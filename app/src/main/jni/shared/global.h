@@ -13,11 +13,13 @@ typedef struct {
     int x, y;
 } Point;
 
+// current directory
+extern std::string g_cwd;
+
 // 环境变量名
 extern const char* DSP_ENV_VAR;
 
 // 默认环境变量路径和实际路径
-extern const char* DEFAULT_DSP_LIB_DIR;
 extern std::string g_dsp_lib_dir;
 
 // 帧dump目录, dump类型, dump大小

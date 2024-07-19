@@ -1,10 +1,10 @@
 #include <string>
 #include "global.h"
 
+std::string g_cwd = ".";
 const char* DSP_ENV_VAR = "ADSP_LIBRARY_PATH";
-const char* DEFAULT_DSP_LIB_DIR = "/vendor/lib";
 std::string g_output_dir = "/data/local/tmp/decode_output";
-std::string g_dsp_lib_dir = DEFAULT_DSP_LIB_DIR;
+std::string g_dsp_lib_dir = "lib";
 RewooDecodeOutputFileType g_output_file_type = REWOO_OUTPUT_NONE;
 std::string g_video_path;
 std::string g_video_codec = "c2.qti.avc.decoder";

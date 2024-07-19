@@ -5,6 +5,10 @@
 #include "log.h"
 #include "Util.hpp"
 
+bool starts_with(std::string src, std::string sub) {
+    return src.rfind(sub, 0) == 0;
+}
+
 void mkdirs(const char* buf) {
     char tmp[256];
     char *p = NULL;

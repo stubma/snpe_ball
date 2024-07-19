@@ -16,6 +16,7 @@ typedef struct {
     std::vector<DlSystem::UserBufferEncoding::ElementType_t> output_element_types;
 } SNPEMeta;
 
+bool starts_with(std::string src, std::string sub);
 bool is_file_exists(std::string path);
 bool is_directory(std::string path);
 void mkdirs(const char* buf);

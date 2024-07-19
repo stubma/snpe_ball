@@ -9,6 +9,7 @@
 #include "raw_list_provider.h"
 #include "tensor_producer.h"
 #include "tensor_consumer.h"
+#include <linux/limits.h>
 
 static const int ARG_VERSION = 'v';
 static const int ARG_DSP_LIB_DIR = 'l';
@@ -90,10 +91,17 @@ static void process_opt(int argc, char *argv[]) {
                 exit(EXIT_SUCCESS);
             case ARG_DSP_LIB_DIR:
                 g_dsp_lib_dir = optarg;
-                setenv(DSP_ENV_VAR, optarg, true);
+                if(!starts_with(g_dsp_lib_dir, "/")) {
+                    g_dsp_lib_dir = g_cwd + "/" + g_dsp_lib_dir;
+                }
+                ALOGD("change dsp lib dir to: %s", g_dsp_lib_dir.c_str());
+                setenv(DSP_ENV_VAR, g_dsp_lib_dir.c_str(), true);
                 break;
             case ARG_VIDEO_PATH:
                 g_video_path = optarg;
+                if(!starts_with(g_video_path, "/")) {
+                    g_video_path = g_cwd + "/" + g_video_path;
+                }
                 break;
             case ARG_VIDEO_WIDTH:
                 g_video_width = atoi(optarg);
@@ -109,6 +117,9 @@ static void process_opt(int argc, char *argv[]) {
                 break;
             case ARG_DLC_PATH:
                 g_dlc_path = optarg;
+                if(!starts_with(g_dlc_path, "/")) {
+                    g_dlc_path = g_cwd + "/" + g_dlc_path;
+                }
                 g_dlc_dir = remove_last_path_component(g_dlc_path);
                 break;
             case ARG_INPUT_LIST:
@@ -183,8 +194,18 @@ static void onOutputAvailable(
 }
 
 int main(int argc, char *argv[]) {
+    // get current directory
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        g_cwd = cwd;
+        if(!starts_with(g_dsp_lib_dir, "/")) {
+            g_dsp_lib_dir = g_cwd + "/" + g_dsp_lib_dir;
+        }
+        ALOGD("current directory: %s, dsp lib dir: %s", g_cwd.c_str(), g_dsp_lib_dir.c_str());
+    }
+
     // set dsp library path so that runtime can use dsp
-    setenv(DSP_ENV_VAR, DEFAULT_DSP_LIB_DIR, true);
+    setenv(DSP_ENV_VAR, g_dsp_lib_dir.c_str(), true);
 
     // handle arguments
     process_opt(argc, argv);
