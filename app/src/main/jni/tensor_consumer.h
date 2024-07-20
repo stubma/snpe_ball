@@ -19,6 +19,7 @@ public:
     void push(std::vector<std::vector<float>>& batch);
 
     inline size_t getBatchSize() { return _meta.batch_size; }
+    inline SNPEMeta& getMeta() { return _meta; }
 
 private:
     std::unique_ptr<SNPE::SNPE> _snpe;

@@ -18,7 +18,7 @@ snpe track ball
 * 将testdata/ball_v3 push到设备任意目录, 假设是/data/local/tmp/ball_v3
 * 在android studio里面rebuild project编译
 * 生成的可执行文件会在app./build/intermediates/cxx/Debug/2y4432u2/obj/arm64-v8a/hexagon这样的路径下, 可以在app下面用find搜一下
-* 将hexagon push到/data/local/tmp/ball_v3, 这个路径无所谓, 也可以随便, 只不过放到这里方便点
+* 将hexagon push到/data/local/tmp/ball_v3
 * 执行export LD_LIBRARY_PATH=/data/local/tmp/ball_v3/lib
-* 将要解码的视频push到设备里, 路径随便
-* 执行 ./hexagon --dlc ballspotting_woGSM_part1.dlc --video_path [视频路径], 模型路径和视频路径可以是相对或者绝对路径
+* 将要解码的视频push到/data/local/tmp/ball_v3
+* 执行 ./hexagon即可, 其需要的参数已经配置在了cfg.ini里, cfg.ini和hexagon必须在同一目录, 如果有参数要调整请修改cfg.ini, 请看cfg.ini的注释

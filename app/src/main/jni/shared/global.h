@@ -13,6 +13,8 @@ typedef struct {
     int x, y;
 } Point;
 
+std::string get_output_type_str(RewooDecodeOutputFileType t);
+
 // current directory
 extern std::string g_cwd;
 
@@ -25,8 +27,8 @@ extern std::string g_dsp_lib_dir;
 // 帧dump目录, dump类型, dump大小
 extern std::string g_output_dir;
 extern RewooDecodeOutputFileType g_output_file_type;
-extern int32_t g_output_width;
-extern int32_t g_output_height;
+extern int32_t g_output_from_frame;
+extern int32_t g_output_to_frame;
 
 // 输入视频
 extern std::string g_video_path;
@@ -40,9 +42,6 @@ extern std::vector<Point> g_goalnet_points;
 // 模型路径
 extern std::string g_dlc_dir;
 extern std::string g_dlc_path;
-
-// 输入文件列表路径
-extern std::string g_input_list_path;
 
 // 全局标志
 extern bool g_decode_done;

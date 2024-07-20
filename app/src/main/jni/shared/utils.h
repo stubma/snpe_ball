@@ -10,6 +10,9 @@
 
 typedef struct {
     size_t batch_size;
+    int32_t input_width;
+    int32_t input_height;
+    int32_t channels;
     DlSystem::StringList output_names;
     std::vector<DlSystem::TensorShape> output_shapes;
     std::vector<size_t> output_element_sizes;

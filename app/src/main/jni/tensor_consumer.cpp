@@ -46,10 +46,18 @@ TensorConsumer::TensorConsumer() {
                              false, platformConfig,
                              usingInitCaching);
 
+    // if caching enabled, save container
+    if (usingInitCaching) {
+        if (container->save(g_dlc_path)) {
+            ALOGD("Saved container into archive successfully");
+        }
+    }
+
     // Check the batch size for the container
     // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
     // is the batch size.
     dumpModel(_snpe, _meta);
+    ALOGD("model meta fetched: input image resolution: %dx%d, channels: %d", _meta.input_width, _meta.input_height, _meta.channels);
 }
 
 TensorConsumer::~TensorConsumer() {

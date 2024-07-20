@@ -125,7 +125,7 @@ void rk_param_get_float_array(const char* entry, float* arr, int capacity, int* 
 	// parse by delimiter
 	*num = 0;
 	char* token = strtok(buf, ",");
-	while(token && *num < capacity - 1) {
+	while(token && *num < capacity) {
 		float f;
 		sscanf(token, "%f", &f);
 		arr[*num] = f;
@@ -152,7 +152,7 @@ void rk_param_get_double_array(const char* entry, double* arr, int capacity, int
 	// parse by delimiter
 	*num = 0;
 	char* token = strtok(buf, ",");
-	while(token && *num < capacity - 1) {
+	while(token && *num < capacity) {
 		double f;
 		sscanf(token, "%lf", &f);
 		arr[*num] = f;
@@ -179,7 +179,7 @@ void rk_param_get_int_array(const char* entry, int* arr, int capacity, int* num)
 	// parse by delimiter
 	*num = 0;
 	char* token = strtok(buf, ",");
-	while(token && *num < capacity - 1) {
+	while(token && *num < capacity) {
 		arr[*num] = atoi(token);
 		(*num)++;
 		token = strtok(NULL, ",");
@@ -245,7 +245,7 @@ void rk_param_get_color_array(const char* entry, unsigned int* arr, int capacity
 	*num = 0;
 	unsigned int color = 0;
 	char* token = strtok(buf, ",");
-	while(token && *num < capacity - 1) {
+	while(token && *num < capacity) {
 		len = strlen(token);
 		if(len > 0) {
 			sscanf(token, "%x", &color);

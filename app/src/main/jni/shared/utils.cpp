@@ -84,6 +84,12 @@ void dumpModel(std::unique_ptr<SNPE::SNPE> &snpe, SNPEMeta& meta) {
     for (int i = 0; i < tensorShape.rank(); i++) {
         if (i == 0) {
             meta.batch_size = dims[i];
+        } else if(i == 1) {
+            meta.input_height = dims[i];
+        } else if(i == 2) {
+            meta.input_width = dims[i];
+        } else if(i == 3) {
+            meta.channels = dims[i];
         }
         printf("%d ", dims[i]);
     }

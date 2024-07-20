@@ -138,13 +138,14 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
         cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
 
         // crop by goal net position
+        SNPEMeta& meta = _consumer->getMeta();
         int32_t cx1 = (g_goalnet_points[2].x + g_goalnet_points[3].x) / 2;
         int32_t cy1 = (g_goalnet_points[2].y + g_goalnet_points[3].y) / 2;
-        int32_t lx = std::min(g_video_width - g_output_width,
-                              std::max(0, cx1 - g_output_width / 2));
-        int32_t ly = std::min(g_video_height - g_output_height,
-                              std::max(0, cy1 - g_output_height / 2));
-        cv::Rect roi(lx, ly, g_output_width, g_output_height);
+        int32_t lx = std::min(g_video_width - meta.input_width,
+                              std::max(0, cx1 - meta.input_width / 2));
+        int32_t ly = std::min(g_video_height - meta.input_height,
+                              std::max(0, cy1 - meta.input_height / 2));
+        cv::Rect roi(lx, ly, meta.input_width, meta.input_height);
         cv::Mat crop = matDst(roi);
 
         // normalization: convert rgb int to float
@@ -152,13 +153,53 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
         crop.convertTo(floatCrop, CV_32F, 1 / 255.0);
 
         // write interleaved data in planar format
-        std::vector<float> raw(g_output_height * g_output_width * 3);
+        std::vector<float> raw(meta.input_width * meta.input_height * meta.channels);
         memcpy_ex(raw.data(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
                   0, floatCrop.elemSize());
-        memcpy_ex(raw.data(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
+        memcpy_ex(raw.data() + floatCrop.total(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
                   sizeof(float32_t), floatCrop.elemSize());
-        memcpy_ex(raw.data(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
+        memcpy_ex(raw.data() + floatCrop.total() * 2, floatCrop.data, sizeof(float32_t), floatCrop.total(),
                   sizeof(float32_t) * 2, floatCrop.elemSize());
+
+        // dump frame
+        char path[512] = {0};
+        int frameNum = _decoder->getOuputFrameNum();
+        if(g_output_file_type != REWOO_OUTPUT_NONE &&
+            frameNum >= g_output_from_frame &&
+            (g_output_to_frame == -1 || frameNum <= g_output_to_frame)) {
+            switch (g_output_file_type) {
+                case REWOO_OUTPUT_YUV: {
+                    sprintf(path, "%s/frame_%d.yuv", g_output_dir.c_str(), frameNum);
+                    FILE *fp = fopen(path, "w+");
+                    fwrite(buf, sizeof(char), bufferInfo->size, fp);
+                    fflush(fp);
+                    fclose(fp);
+                    ALOGV("bytes(%d) written into file %s", bufferInfo->size, path);
+                    break;
+                }
+                case REWOO_OUTPUT_JPG: {
+                    sprintf(path, "%s/frame_%d.jpg", g_output_dir.c_str(), frameNum);
+                    cv::Mat matSrc = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
+                    cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
+                    cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
+                    cv::imwrite(path, matDst);
+                    ALOGV("JPG written into file %s", path);
+                    break;
+                }
+                case REWOO_OUTPUT_RAW_RGB: {
+                    sprintf(path, "%s/frame_%d.raw", g_output_dir.c_str(), frameNum);
+                    FILE *fp = fopen(path, "w+");
+                    fwrite(raw.data(), floatCrop.total() * floatCrop.elemSize(), 1, fp);
+                    fflush(fp);
+                    fclose(fp);
+                    ALOGV("bytes(%lu) written into file %s", floatCrop.total() * floatCrop.elemSize(),
+                          path);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
 
         // put to queue
         if(_pending_batch.size() >= _batch_size) {
