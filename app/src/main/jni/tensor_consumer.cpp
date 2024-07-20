@@ -94,7 +94,7 @@ void TensorConsumer::loop() {
     const auto &input_tensor_names = *ref_input_tensor;
 
     // for statistics
-    std::chrono::milliseconds total_cost = std::chrono::milliseconds(0);
+    std::chrono::milliseconds network_cost = std::chrono::milliseconds(0);
     size_t total_frame = 0;
     size_t batch_num = 0;
 
@@ -128,12 +128,12 @@ void TensorConsumer::loop() {
         const auto end = std::chrono::high_resolution_clock::now();
         const std::chrono::milliseconds cost = std::chrono::duration_cast<std::chrono::milliseconds>(
                 end - start);
-        total_cost += cost;
+        network_cost += cost;
 
         // check result
         if(execStatus) {
             ALOGD("model running - batch %lu, frames: %lu, cost: %lldms(average: %lldms)",
-                  batch_num, total_frame, total_cost.count(), (total_cost.count() / total_frame));
+                  batch_num, total_frame, network_cost.count(), (network_cost.count() / total_frame));
 
             // print output
             int size = _meta.output_names.size();

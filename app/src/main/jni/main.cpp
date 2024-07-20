@@ -241,9 +241,14 @@ int main(int argc, char *argv[]) {
         c.run();
 
         // wait done
+        const auto start = std::chrono::high_resolution_clock::now();
         while (!g_decode_done || !g_dlc_done) {
             sleep(1);
         }
+        const auto end = std::chrono::high_resolution_clock::now();
+        const std::chrono::milliseconds cost = std::chrono::duration_cast<std::chrono::milliseconds>(
+                end - start);
+        ALOGD("total running time: %lldms", cost.count());
     }
 
     // ok
