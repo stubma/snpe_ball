@@ -4,16 +4,16 @@
 #include <vector>
 
 typedef enum {
-    REWOO_OUTPUT_NONE,
-    REWOO_OUTPUT_YUV,
-    REWOO_OUTPUT_JPG,
-    REWOO_OUTPUT_RAW_RGB
+    REWOO_DUMP_NONE,
+    REWOO_DUMP_YUV,
+    REWOO_DUMP_JPG,
+    REWOO_DUMP_RAW_RGB
 } RewooDecodeOutputFileType;
 typedef struct {
     int x, y;
 } Point;
 
-std::string get_output_type_str(RewooDecodeOutputFileType t);
+std::string get_dump_type_str(RewooDecodeOutputFileType t);
 
 // current directory
 extern std::string g_cwd;
@@ -25,10 +25,10 @@ extern const char* DSP_ENV_VAR;
 extern std::string g_dsp_lib_dir;
 
 // 帧dump目录, dump类型, dump大小
-extern std::string g_output_dir;
-extern RewooDecodeOutputFileType g_output_file_type;
-extern int32_t g_output_from_frame;
-extern int32_t g_output_to_frame;
+extern std::string g_dump_dir;
+extern RewooDecodeOutputFileType g_dump_file_type;
+extern int32_t g_dump_from_frame;
+extern int32_t g_dump_to_frame;
 
 // 输入视频
 extern std::string g_video_path;

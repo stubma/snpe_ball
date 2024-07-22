@@ -146,12 +146,12 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
         // dump frame
         char path[512] = {0};
         int frameNum = _decoder->getOuputFrameNum();
-        if(g_output_file_type != REWOO_OUTPUT_NONE &&
-            frameNum >= g_output_from_frame &&
-            (g_output_to_frame == -1 || frameNum <= g_output_to_frame)) {
-            switch (g_output_file_type) {
-                case REWOO_OUTPUT_YUV: {
-                    sprintf(path, "%s/frame_%d.yuv", g_output_dir.c_str(), frameNum);
+        if(g_dump_file_type != REWOO_DUMP_NONE &&
+            frameNum >= g_dump_from_frame &&
+            (g_dump_to_frame == -1 || frameNum <= g_dump_to_frame)) {
+            switch (g_dump_file_type) {
+                case REWOO_DUMP_YUV: {
+                    sprintf(path, "%s/frame_%d.yuv", g_dump_dir.c_str(), frameNum);
                     FILE *fp = fopen(path, "w+");
                     fwrite(buf, sizeof(char), bufferInfo->size, fp);
                     fflush(fp);
@@ -159,8 +159,8 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
                     ALOGV("bytes(%d) written into file %s", bufferInfo->size, path);
                     break;
                 }
-                case REWOO_OUTPUT_JPG: {
-                    sprintf(path, "%s/frame_%d.jpg", g_output_dir.c_str(), frameNum);
+                case REWOO_DUMP_JPG: {
+                    sprintf(path, "%s/frame_%d.jpg", g_dump_dir.c_str(), frameNum);
                     cv::Mat matSrc = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
                     cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
                     cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
@@ -168,8 +168,8 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
                     ALOGV("JPG written into file %s", path);
                     break;
                 }
-                case REWOO_OUTPUT_RAW_RGB: {
-                    sprintf(path, "%s/frame_%d.raw", g_output_dir.c_str(), frameNum);
+                case REWOO_DUMP_RAW_RGB: {
+                    sprintf(path, "%s/frame_%d.raw", g_dump_dir.c_str(), frameNum);
                     FILE *fp = fopen(path, "w+");
                     fwrite(raw.data(), floatCrop.total() * floatCrop.elemSize(), 1, fp);
                     fflush(fp);
