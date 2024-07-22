@@ -80,6 +80,7 @@ TensorProducer::~TensorProducer() {
 
     // release
     if (_decoder) {
+        _decoder->deInitCodec();
         _decoder->getExtractor()->deInitExtractor();
         delete _decoder;
         _decoder = nullptr;

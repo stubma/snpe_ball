@@ -217,6 +217,3 @@ void Decoder::deInitCodec() {
     AMediaCodec_stop(mCodec);
     AMediaCodec_delete(mCodec);
 }
-
-void Decoder::resetDecoder() {
-}

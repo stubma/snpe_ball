@@ -116,8 +116,6 @@ public:
 
     void deInitCodec();
 
-    void resetDecoder();
-
     AMediaFormat *getFormat();
 
     // Async callback APIs
