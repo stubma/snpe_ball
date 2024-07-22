@@ -22,36 +22,12 @@
 #include "Extractor.h"
 
 int32_t Extractor::initExtractor(int32_t fd, size_t fileSize) {
-    mStats = new Stats();
-
-    int64_t sTime = mStats->getCurTime();
-
     mExtractor = AMediaExtractor_new();
     if (!mExtractor) return AMEDIACODEC_ERROR_INSUFFICIENT_RESOURCE;
     media_status_t status = AMediaExtractor_setDataSourceFd(mExtractor, fd, 0, fileSize);
     if (status != AMEDIA_OK) return status;
 
-    int64_t eTime = mStats->getCurTime();
-    int64_t timeTaken = mStats->getTimeDiff(sTime, eTime);
-    mStats->setInitTime(timeTaken);
-
     return AMediaExtractor_getTrackCount(mExtractor);
-}
-
-void *Extractor::getCSDSample(AMediaCodecBufferInfo &frameInfo, int32_t csdIndex) {
-    char csdName[kMaxCSDStrlen];
-    void *csdBuffer = nullptr;
-    frameInfo.presentationTimeUs = 0;
-    frameInfo.flags = AMEDIACODEC_BUFFER_FLAG_CODEC_CONFIG;
-    snprintf(csdName, sizeof(csdName), "csd-%d", csdIndex);
-
-    size_t size;
-    bool csdFound = AMediaFormat_getBuffer(mFormat, csdName, &csdBuffer, &size);
-    if (!csdFound) return nullptr;
-    frameInfo.size = (int32_t)size;
-    mStats->addFrameSize(frameInfo.size);
-
-    return csdBuffer;
 }
 
 int32_t Extractor::getFrameSample(AMediaCodecBufferInfo &frameInfo, uint8_t* input, size_t bufSize) {
@@ -60,7 +36,6 @@ int32_t Extractor::getFrameSample(AMediaCodecBufferInfo &frameInfo, uint8_t* inp
 
     frameInfo.flags = AMediaExtractor_getSampleFlags(mExtractor);
     frameInfo.size = size;
-    mStats->addFrameSize(frameInfo.size);
     frameInfo.presentationTimeUs = AMediaExtractor_getSampleTime(mExtractor);
     AMediaExtractor_advance(mExtractor);
 
@@ -78,18 +53,9 @@ int32_t Extractor::setupTrackFormat(int32_t trackId) {
     return AMEDIA_OK;
 }
 
-void Extractor::dumpStatistics(string inputReference, string componentName, string statsFile) {
-    string operation = "extract";
-    mStats->dumpStatistics(operation, inputReference, mDurationUs, componentName, "", statsFile);
-}
-
 void Extractor::deInitExtractor() {
-    int64_t sTime = mStats->getCurTime();
     if (mExtractor) {
         AMediaExtractor_delete(mExtractor);
         mExtractor = nullptr;
     }
-    int64_t eTime = mStats->getCurTime();
-    int64_t deInitTime = mStats->getTimeDiff(sTime, eTime);
-    mStats->setDeInitTime(deInitTime);
 }

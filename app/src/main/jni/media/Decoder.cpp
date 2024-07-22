@@ -18,9 +18,10 @@
 #define LOG_TAG "decoder"
 
 #include <iostream>
-
 #include "Decoder.h"
-#include "stdio.h"
+#include "log.h"
+
+constexpr uint32_t kQueueDequeueTimeoutUs = 30000;
 
 void Decoder::onInputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx) {
     if (mSawInputEOS || bufIdx < 0) return;
@@ -56,7 +57,6 @@ void Decoder::onInputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx) {
         mErrorCode = status;
         return;
     }
-    mStats->addFrameSize(frameInfo.size);
     mNumInputFrame++;
 
     // forward
@@ -109,7 +109,7 @@ AMediaFormat *Decoder::getFormat() {
     return AMediaCodec_getOutputFormat(mCodec);
 }
 
-int32_t Decoder::decode(string &codecName) {
+int32_t Decoder::decode(std::string &codecName) {
     mNumOutputFrame = 0;
     _tryAgainCount = 0;
 
@@ -117,8 +117,7 @@ int32_t Decoder::decode(string &codecName) {
     AMediaFormat_getString(mFormat, AMEDIAFORMAT_KEY_MIME, &mime);
     if (!mime) return AMEDIA_ERROR_INVALID_OBJECT;
 
-    int64_t sTime = mStats->getCurTime();
-    mCodec = createMediaCodec(mFormat, mime, codecName, false /*isEncoder*/);
+    mCodec = createMediaCodec(mFormat, mime, codecName /*isEncoder*/);
     if (!mCodec) return AMEDIA_ERROR_INVALID_OBJECT;
 
     media_status_t status = AMediaCodec_start(mCodec);
@@ -132,11 +131,6 @@ int32_t Decoder::decode(string &codecName) {
         return AMEDIA_ERROR_IO;
     }
 
-    int64_t eTime = mStats->getCurTime();
-    int64_t timeTaken = mStats->getTimeDiff(sTime, eTime);
-    mStats->setInitTime(timeTaken);
-
-    mStats->setStartTime();
     while (true) {
         /* Queue input data */
         if (!mSawInputEOS) {
@@ -147,7 +141,6 @@ int32_t Decoder::decode(string &codecName) {
                 onError(mCodec, mErrorCode);
                 return mErrorCode;
             } else if (inIdx >= 0) {
-                mStats->addInputTime();
                 onInputAvailable(mCodec, inIdx);
             }
         }
@@ -161,7 +154,6 @@ int32_t Decoder::decode(string &codecName) {
                     mSawOutputEOS = true;
                     break;
                 }
-                mStats->addOutputTime();
                 onOutputAvailable(mCodec, outIdx, &info);
             } else if (outIdx == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
                 mFormat = AMediaCodec_getOutputFormat(mCodec);
@@ -184,27 +176,47 @@ int32_t Decoder::decode(string &codecName) {
     return AMEDIA_OK;
 }
 
+AMediaCodec* Decoder::createMediaCodec(AMediaFormat *format, const char *mime, std::string codecName) {
+    if (!mime) {
+        ALOGE("Please specify a mime type to create codec");
+        return nullptr;
+    }
+
+    AMediaCodec *codec;
+    if (!codecName.empty()) {
+        codec = AMediaCodec_createCodecByName(codecName.c_str());
+        if (!codec) {
+            ALOGE("Unable to create codec by name: %s", codecName.c_str());
+            return nullptr;
+        }
+    } else {
+        codec = AMediaCodec_createDecoderByType(mime);
+        if (!codec) {
+            ALOGE("Unable to create codec by mime: %s", mime);
+            return nullptr;
+        }
+    }
+
+    /* Configure codec with the given format*/
+    ALOGD("Input format: %s", AMediaFormat_toString(format));
+
+    media_status_t status = AMediaCodec_configure(codec, format, nullptr, nullptr, false);
+    if (status != AMEDIA_OK) {
+        ALOGE("AMediaCodec_configure failed %d", status);
+        return nullptr;
+    }
+    return codec;
+}
+
 void Decoder::deInitCodec() {
     if (mFormat) {
         AMediaFormat_delete(mFormat);
         mFormat = nullptr;
     }
     if (!mCodec) return;
-    int64_t sTime = mStats->getCurTime();
     AMediaCodec_stop(mCodec);
     AMediaCodec_delete(mCodec);
-    int64_t eTime = mStats->getCurTime();
-    int64_t timeTaken = mStats->getTimeDiff(sTime, eTime);
-    mStats->setDeInitTime(timeTaken);
-}
-
-void Decoder::dumpStatistics(string inputReference, string componentName, string mode,
-                             string statsFile) {
-    int64_t durationUs = mExtractor->getClipDuration();
-    string operation = "decode";
-    mStats->dumpStatistics(operation, inputReference, durationUs, componentName, mode, statsFile);
 }
 
 void Decoder::resetDecoder() {
-    if (mStats) mStats->reset();
 }

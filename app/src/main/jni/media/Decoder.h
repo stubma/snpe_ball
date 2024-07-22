@@ -22,10 +22,9 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <string>
 
-#include "BenchmarkCommon.h"
 #include "Extractor.h"
-#include "Stats.h"
 
 class Decoder;
 
@@ -37,6 +36,7 @@ typedef void (*RewooDecoderOnInputAvailable)(
         AMediaCodec *codec,
         Decoder *decoder,
         int32_t index);
+
 /**
  * Called when an output buffer becomes available.
  * The specified index is the index of the available output buffer.
@@ -47,6 +47,7 @@ typedef void (*RewooDecoderOnOutputAvailable)(
         Decoder *decoder,
         int32_t index,
         AMediaCodecBufferInfo *bufferInfo);
+
 /**
  * Called when the output format has changed.
  * The specified format contains the new output format.
@@ -55,6 +56,7 @@ typedef void (*RewooDecoderOnFormatChanged)(
         AMediaCodec *codec,
         Decoder *decoder,
         AMediaFormat *format);
+
 /**
  * Called when the MediaCodec encountered an error.
  * The specified actionCode indicates the possible actions that client can take,
@@ -72,25 +74,25 @@ typedef void (*RewooDecoderOnError)(
         const char *detail);
 
 typedef struct {
-    RewooDecoderOnInputAvailable  onInputAvailable;
+    RewooDecoderOnInputAvailable onInputAvailable;
     RewooDecoderOnOutputAvailable onOutputAvailable;
-    RewooDecoderOnFormatChanged   onFormatChanged;
-    RewooDecoderOnError           onError;
+    RewooDecoderOnFormatChanged onFormatChanged;
+    RewooDecoderOnError onError;
 } RewooDecoderCallback;
 
-class Decoder : public CallBackHandle {
-  public:
+class Decoder {
+public:
     Decoder()
-        : mCodec(nullptr),
-          mFormat(nullptr),
-          mExtractor(nullptr),
-          mNumInputFrame(0),
-          mNumOutputFrame(0),
-          mSawInputEOS(false),
-          mSawOutputEOS(false),
-          mErrorCode(AMEDIA_OK),
-          _cb(nullptr),
-          _cbUserData(nullptr) {
+            : mCodec(nullptr),
+              mFormat(nullptr),
+              mExtractor(nullptr),
+              mNumInputFrame(0),
+              mNumOutputFrame(0),
+              mSawInputEOS(false),
+              mSawOutputEOS(false),
+              mErrorCode(AMEDIA_OK),
+              _cb(nullptr),
+              _cbUserData(nullptr) {
         mExtractor = new Extractor();
     }
 
@@ -99,11 +101,14 @@ class Decoder : public CallBackHandle {
     }
 
     Extractor *getExtractor() { return mExtractor; }
-    inline void setCallback(RewooDecoderCallback* cb, void* userData) {
+
+    inline void setCallback(RewooDecoderCallback *cb, void *userData) {
         _cb = cb;
         _cbUserData = userData;
     }
-    inline void* getCallbackUserData() { return _cbUserData; }
+
+    inline void *getCallbackUserData() { return _cbUserData; }
+
     inline int32_t getOuputFrameNum() { return mNumOutputFrame; }
 
     // Decoder related utilities
@@ -116,28 +121,29 @@ class Decoder : public CallBackHandle {
     AMediaFormat *getFormat();
 
     // Async callback APIs
-    void onInputAvailable(AMediaCodec *codec, int32_t index) override;
+    void onInputAvailable(AMediaCodec *codec, int32_t index);
 
-    void onFormatChanged(AMediaCodec *codec, AMediaFormat *format) override;
+    void onFormatChanged(AMediaCodec *codec, AMediaFormat *format);
 
-    void onError(AMediaCodec *mediaCodec, media_status_t err) override;
+    void onError(AMediaCodec *mediaCodec, media_status_t err);
 
     void onOutputAvailable(AMediaCodec *codec, int32_t index,
-                           AMediaCodecBufferInfo *bufferInfo) override;
+                           AMediaCodecBufferInfo *bufferInfo);
 
     // Process the frames and give decoded output
-    int32_t decode(string &codecName);
+    int32_t decode(std::string &codecName);
 
-    void dumpStatistics(string inputReference, string componentName = "", string mode = "",
-                        string statsFile = "");
+private:
+    // Utility to create and configure AMediaCodec
+    AMediaCodec *createMediaCodec(AMediaFormat *format, const char *mime, std::string codecName);
 
-  private:
+private:
     AMediaCodec *mCodec;
     AMediaFormat *mFormat;
 
     Extractor *mExtractor;
-    RewooDecoderCallback* _cb;
-    void* _cbUserData;
+    RewooDecoderCallback *_cb;
+    void *_cbUserData;
 
     int32_t mNumInputFrame;
     int32_t mNumOutputFrame;
@@ -147,10 +153,5 @@ class Decoder : public CallBackHandle {
     media_status_t mErrorCode;
     int32_t _tryAgainCount;
 };
-
-// Read input samples
-tuple<ssize_t, uint32_t, int64_t> readSampleData(uint8_t *inputBuffer, int32_t &offset,
-                                                 vector<AMediaCodecBufferInfo> &frameSizes,
-                                                 uint8_t *buf, int32_t frameID, size_t bufSize);
 
 #endif  // __DECODER_H__

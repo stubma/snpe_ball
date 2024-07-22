@@ -19,30 +19,21 @@
 
 #include <media/NdkMediaExtractor.h>
 
-#include "BenchmarkCommon.h"
-#include "Stats.h"
-
 class Extractor {
   public:
     Extractor()
         : mFormat(nullptr),
           mExtractor(nullptr),
-          mStats(nullptr),
           mDurationUs{0} {}
 
     ~Extractor() {
-        if (mStats) delete mStats;
     }
 
     int32_t initExtractor(int32_t fd, size_t fileSize);
 
     int32_t setupTrackFormat(int32_t trackId);
 
-    void *getCSDSample(AMediaCodecBufferInfo &frameInfo, int32_t csdIndex);
-
     int32_t getFrameSample(AMediaCodecBufferInfo &frameInfo, uint8_t* input, size_t bufSize);
-
-    void dumpStatistics(string inputReference, string componentName = "", string statsFile = "");
 
     void deInitExtractor();
 
@@ -53,7 +44,6 @@ class Extractor {
   private:
     AMediaFormat *mFormat;
     AMediaExtractor *mExtractor;
-    Stats *mStats;
     int64_t mDurationUs;
 };
 

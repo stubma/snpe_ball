@@ -4,6 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include "utils.h"
 #include "tensor_consumer.h"
+#include <sys/stat.h>
 
 TensorProducer::TensorProducer(TensorConsumer* c) {
     // init
