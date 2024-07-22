@@ -172,8 +172,8 @@ int32_t Decoder::decode(string &codecName) {
             } else if (outIdx == AMEDIACODEC_INFO_TRY_AGAIN_LATER) {
                 ALOGD("Try again later. tryagaincnt = %d.", _tryAgainCount);
                 _tryAgainCount++;
-                if (_tryAgainCount > 40) {
-                    ALOGE("Try again 40 times continously. consider it failed.");
+                if (_tryAgainCount > 20) {
+                    ALOGE("Try again 20 times continously. consider it failed.");
                     return outIdx;
                 }
             } else {
