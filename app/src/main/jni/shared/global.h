@@ -40,7 +40,6 @@ extern std::string g_video_codec;
 extern std::vector<Point> g_goalnet_points;
 
 // 模型路径
-extern std::string g_dlc_dir;
 extern std::string g_dlc_path;
 
 // 全局标志

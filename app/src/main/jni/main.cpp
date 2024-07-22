@@ -59,7 +59,6 @@ static void loadConfig() {
     if (!starts_with(g_dlc_path, "/")) {
         g_dlc_path = g_cwd + "/" + g_dlc_path;
     }
-    g_dlc_dir = remove_last_path_component(g_dlc_path);
     g_video_path = rk_param_get_string("input:video_path", "");
     if (!starts_with(g_video_path, "/")) {
         g_video_path = g_cwd + "/" + g_video_path;
@@ -138,6 +137,12 @@ int main(int argc, char *argv[]) {
     // check video path
     if(!is_file_exists(g_video_path)) {
         ALOGD("video file %s doesn't not exist", g_video_path.c_str());
+        return EXIT_FAILURE;
+    }
+
+    // check dlc path
+    if(!is_file_exists(g_dlc_path)) {
+        ALOGD("model file %s doesn't not exist", g_dlc_path.c_str());
         return EXIT_FAILURE;
     }
 

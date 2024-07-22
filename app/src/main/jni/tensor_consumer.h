@@ -26,7 +26,6 @@ private:
     SNPEMeta _meta;
     std::deque<std::vector<std::vector<float>>> _batch_queue;
 
-
     std::thread _t;
     std::mutex _mutex;
     std::condition_variable _cond;
