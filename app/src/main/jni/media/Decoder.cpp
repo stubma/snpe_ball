@@ -173,8 +173,8 @@ int32_t Decoder::decode(string &codecName) {
                 ALOGD("Try again later. tryagaincnt = %d.", _tryAgainCount);
                 _tryAgainCount++;
                 if (_tryAgainCount > 20) {
-                    ALOGE("Try again 20 times continously. consider it failed.");
-                    return outIdx;
+                    ALOGE("Try again 20 times continously. consider it ended.");
+                    break;
                 }
             } else {
                 ALOGD("dequeue output buffer got unexpected info code %zd", outIdx);
