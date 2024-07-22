@@ -1,7 +1,6 @@
 #include <getopt.h>
 #include <stdio.h>
 #include "log.h"
-#include "codec_api.h"
 #include "shared/utils.h"
 #include <opencv2/opencv.hpp>
 #include "shared/global.h"

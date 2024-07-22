@@ -22,129 +22,82 @@
 #include "Decoder.h"
 #include "stdio.h"
 
-tuple<ssize_t, uint32_t, int64_t> readSampleData(uint8_t *inputBuffer, int32_t &offset,
-                                                 vector<AMediaCodecBufferInfo> &frameInfo,
-                                                 uint8_t *buf, int32_t frameID, size_t bufSize) {
-    if (frameID == (int32_t)frameInfo.size()) {
-        return make_tuple(0, AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM, 0);
-    }
-    uint32_t flags = frameInfo[frameID].flags;
-    int64_t timestamp = frameInfo[frameID].presentationTimeUs;
-    ssize_t bytesCount = frameInfo[frameID].size;
-    if (bufSize < bytesCount) {
-        ALOGE("Error : Buffer size is insufficient to read sample");
-        return make_tuple(0, AMEDIA_ERROR_MALFORMED, 0);
-    }
-
-    memcpy(buf, inputBuffer + offset, bytesCount);
-    offset += bytesCount;
-    return make_tuple(bytesCount, flags, timestamp);
-}
-
 void Decoder::onInputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx) {
-    if (mediaCodec == mCodec && mediaCodec) {
-        if (mSawInputEOS || bufIdx < 0) return;
-        if (mSignalledError) {
-            CallBackHandle::mSawError = true;
-            mDecoderDoneCondition.notify_one();
-            return;
-        }
+    if (mSawInputEOS || bufIdx < 0) return;
 
-        size_t bufSize;
-        uint8_t *buf = AMediaCodec_getInputBuffer(mCodec, bufIdx, &bufSize);
-        if (!buf) {
-            mErrorCode = AMEDIA_ERROR_IO;
-            mSignalledError = true;
-            mDecoderDoneCondition.notify_one();
-            return;
-        }
+    size_t bufSize;
+    uint8_t *buf = AMediaCodec_getInputBuffer(mCodec, bufIdx, &bufSize);
+    if (!buf) {
+        ALOGE("failed to get input buffer");
+        mErrorCode = AMEDIA_ERROR_IO;
+        return;
+    }
 
-        ssize_t bytesRead = 0;
-        uint32_t flag = 0;
-        int64_t presentationTimeUs = 0;
-        tie(bytesRead, flag, presentationTimeUs) =
-                readSampleData(mInputBuffer, mOffset, mFrameMetaData, buf, mNumInputFrame, bufSize);
-        if (flag == AMEDIA_ERROR_MALFORMED) {
-            mErrorCode = (media_status_t)flag;
-            mSignalledError = true;
-            mDecoderDoneCondition.notify_one();
-            return;
-        }
+    AMediaCodecBufferInfo frameInfo;
+    mExtractor->getFrameSample(frameInfo, buf, bufSize);
+    if (frameInfo.flags == AMEDIA_ERROR_MALFORMED) {
+        ALOGE("failed to read frame sample, malformed");
+        mErrorCode = (media_status_t) frameInfo.flags;
+        return;
+    }
 
-        if (flag == AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) mSawInputEOS = true;
-//        ALOGV("%s bytesRead : %zd presentationTimeUs : %" PRId64 " mSawInputEOS : %s", __FUNCTION__,
-//              bytesRead, presentationTimeUs, mSawInputEOS ? "TRUE" : "FALSE");
+    if ((frameInfo.flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) != 0) mSawInputEOS = true;
+//    ALOGV("%s bytesRead : %d presentationTimeUs : %" PRId64 " mSawInputEOS : %s", __FUNCTION__,
+//          frameInfo.size, frameInfo.presentationTimeUs, mSawInputEOS ? "TRUE" : "FALSE");
 
-        media_status_t status = AMediaCodec_queueInputBuffer(mCodec, bufIdx, 0 /* offset */,
-                                                             bytesRead, presentationTimeUs, flag);
-        if (AMEDIA_OK != status) {
-            mErrorCode = status;
-            mSignalledError = true;
-            mDecoderDoneCondition.notify_one();
-            return;
-        }
-        mStats->addFrameSize(bytesRead);
-        mNumInputFrame++;
+    media_status_t status = AMediaCodec_queueInputBuffer(mCodec, bufIdx, 0 /* offset */,
+                                                         frameInfo.size,
+                                                         frameInfo.presentationTimeUs,
+                                                         mSawInputEOS
+                                                         ? AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM
+                                                         : 0);
+    if (AMEDIA_OK != status) {
+        ALOGE("failed to queue input buffer: %d", status);
+        mErrorCode = status;
+        return;
+    }
+    mStats->addFrameSize(frameInfo.size);
+    mNumInputFrame++;
 
-        // forward
-        if(_cb && _cb->onInputAvailable) {
-            _cb->onInputAvailable(mediaCodec, this, bufIdx);
-        }
+    // forward
+    if (_cb && _cb->onInputAvailable) {
+        _cb->onInputAvailable(mediaCodec, this, bufIdx);
     }
 }
 
 void Decoder::onOutputAvailable(AMediaCodec *mediaCodec, int32_t bufIdx,
                                 AMediaCodecBufferInfo *bufferInfo) {
-    if (mediaCodec == mCodec && mediaCodec) {
-        if (mSawOutputEOS || bufIdx < 0) return;
-        if (mSignalledError) {
-            CallBackHandle::mSawError = true;
-            mDecoderDoneCondition.notify_one();
-            return;
-        }
+    if (mSawOutputEOS || bufIdx < 0) return;
 
-        mSawOutputEOS = (0 != (bufferInfo->flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM));
-        mNumOutputFrame++;
-//        ALOGV("%s index : %d  mSawOutputEOS : %s count : %u", __FUNCTION__, bufIdx,
-//              mSawOutputEOS ? "TRUE" : "FALSE", mNumOutputFrame);
+    mNumOutputFrame++;
+//    ALOGD("%s index : %d  mSawOutputEOS : %s count : %u", __FUNCTION__, bufIdx,
+//          mSawOutputEOS ? "TRUE" : "FALSE", mNumOutputFrame);
 
-        // forward
-        if(_cb && _cb->onOutputAvailable) {
-            _cb->onOutputAvailable(mediaCodec, this, bufIdx, bufferInfo);
-        }
-
-        AMediaCodec_releaseOutputBuffer(mCodec, bufIdx, false);
-
-        if (mSawOutputEOS) {
-            CallBackHandle::mIsDone = true;
-            mDecoderDoneCondition.notify_one();
-        }
+    // forward
+    if (_cb && _cb->onOutputAvailable) {
+        _cb->onOutputAvailable(mediaCodec, this, bufIdx, bufferInfo);
     }
+
+    AMediaCodec_releaseOutputBuffer(mCodec, bufIdx, false);
 }
 
 void Decoder::onFormatChanged(AMediaCodec *mediaCodec, AMediaFormat *format) {
-    if (mediaCodec == mCodec && mediaCodec) {
-        ALOGV("%s { %s }", __FUNCTION__, AMediaFormat_toString(format));
-        mFormat = format;
+    ALOGV("%s { %s }", __FUNCTION__, AMediaFormat_toString(format));
+    mFormat = format;
 
-        // forward
-        if(_cb && _cb->onFormatChanged) {
-            _cb->onFormatChanged(mediaCodec, this, format);
-        }
+    // forward
+    if (_cb && _cb->onFormatChanged) {
+        _cb->onFormatChanged(mediaCodec, this, format);
     }
 }
 
 void Decoder::onError(AMediaCodec *mediaCodec, media_status_t err) {
-    if (mediaCodec == mCodec && mediaCodec) {
-        ALOGE("Received Error %d", err);
-        mErrorCode = err;
-        mSignalledError = true;
-        mDecoderDoneCondition.notify_one();
+    ALOGE("Received Error %d", err);
+    mErrorCode = err;
 
-        // forward
-        if(_cb && _cb->onError) {
-            _cb->onError(mediaCodec, this, err, 0, nullptr);
-        }
+    // forward
+    if (_cb && _cb->onError) {
+        _cb->onError(mediaCodec, this, err, 0, nullptr);
     }
 }
 
@@ -156,12 +109,9 @@ AMediaFormat *Decoder::getFormat() {
     return AMediaCodec_getOutputFormat(mCodec);
 }
 
-int32_t Decoder::decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &frameInfo,
-                        string &codecName, bool asyncMode) {
-    mInputBuffer = inputBuffer;
-    mFrameMetaData = frameInfo;
-    mOffset = 0;
+int32_t Decoder::decode(string &codecName) {
     mNumOutputFrame = 0;
+    _tryAgainCount = 0;
 
     const char *mime = nullptr;
     AMediaFormat_getString(mFormat, AMEDIAFORMAT_KEY_MIME, &mime);
@@ -171,67 +121,65 @@ int32_t Decoder::decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &fra
     mCodec = createMediaCodec(mFormat, mime, codecName, false /*isEncoder*/);
     if (!mCodec) return AMEDIA_ERROR_INVALID_OBJECT;
 
-    if (asyncMode) {
-        AMediaCodecOnAsyncNotifyCallback aCB = {OnInputAvailableCB, OnOutputAvailableCB,
-                                                OnFormatChangedCB, OnErrorCB};
-        AMediaCodec_setAsyncNotifyCallback(mCodec, aCB, this);
-
-        mIOThread = thread(&CallBackHandle::ioThread, this);
+    media_status_t status = AMediaCodec_start(mCodec);
+    if (status) {
+        ALOGE("Error when start mediacodec decoder, return %d", status);
+        return AMEDIA_ERROR_IO;
+    }
+    status = AMediaCodec_flush(mCodec);
+    if (status != AMEDIA_OK) {
+        ALOGE("Error when flush codec. return %d.", status);
+        return AMEDIA_ERROR_IO;
     }
 
-    AMediaCodec_start(mCodec);
     int64_t eTime = mStats->getCurTime();
     int64_t timeTaken = mStats->getTimeDiff(sTime, eTime);
     mStats->setInitTime(timeTaken);
 
     mStats->setStartTime();
-    if (!asyncMode) {
-        while (!mSawOutputEOS && !mSignalledError) {
-            /* Queue input data */
-            if (!mSawInputEOS) {
-                ssize_t inIdx = AMediaCodec_dequeueInputBuffer(mCodec, kQueueDequeueTimeoutUs);
-                if (inIdx < 0 && inIdx != AMEDIACODEC_INFO_TRY_AGAIN_LATER) {
-                    ALOGE("AMediaCodec_dequeueInputBuffer returned invalid index %zd\n", inIdx);
-                    mErrorCode = (media_status_t)inIdx;
-                    onError(mCodec, mErrorCode);
-                    return mErrorCode;
-                } else if (inIdx >= 0) {
-                    mStats->addInputTime();
-                    onInputAvailable(mCodec, inIdx);
-                }
-            }
-
-            /* Dequeue output data */
-            AMediaCodecBufferInfo info;
-            ssize_t outIdx = AMediaCodec_dequeueOutputBuffer(mCodec, &info, kQueueDequeueTimeoutUs);
-            if (outIdx == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
-                mFormat = AMediaCodec_getOutputFormat(mCodec);
-                const char *s = AMediaFormat_toString(mFormat);
-//                ALOGI("Output format: %s\n", s);
-            } else if (outIdx >= 0) {
-                mStats->addOutputTime();
-                onOutputAvailable(mCodec, outIdx, &info);
-            } else if (!(outIdx == AMEDIACODEC_INFO_TRY_AGAIN_LATER ||
-                         outIdx == AMEDIACODEC_INFO_OUTPUT_BUFFERS_CHANGED)) {
-                ALOGE("AMediaCodec_dequeueOutputBuffer returned invalid index %zd\n", outIdx);
-                mErrorCode = (media_status_t)outIdx;
+    while (true) {
+        /* Queue input data */
+        if (!mSawInputEOS) {
+            ssize_t inIdx = AMediaCodec_dequeueInputBuffer(mCodec, kQueueDequeueTimeoutUs);
+            if (inIdx < 0 && inIdx != AMEDIACODEC_INFO_TRY_AGAIN_LATER) {
+                ALOGE("AMediaCodec_dequeueInputBuffer returned invalid index %zd\n", inIdx);
+                mErrorCode = (media_status_t) inIdx;
+                onError(mCodec, mErrorCode);
                 return mErrorCode;
+            } else if (inIdx >= 0) {
+                mStats->addInputTime();
+                onInputAvailable(mCodec, inIdx);
             }
         }
-    } else {
-        unique_lock<mutex> lock(mMutex);
-        mDecoderDoneCondition.wait(lock, [this]() { return (mSawOutputEOS || mSignalledError); });
-    }
-    if (mSignalledError) {
-        ALOGE("Received Error while Decoding");
-        return mErrorCode;
-    }
 
-    if (codecName.empty()) {
-        char *decName;
-        AMediaCodec_getName(mCodec, &decName);
-        codecName.assign(decName);
-        AMediaCodec_releaseName(mCodec, decName);
+        /* Dequeue output data */
+        if (!mSawOutputEOS) {
+            AMediaCodecBufferInfo info;
+            ssize_t outIdx = AMediaCodec_dequeueOutputBuffer(mCodec, &info, kQueueDequeueTimeoutUs);
+            if (outIdx >= 0) {
+                if (info.flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) {
+                    mSawOutputEOS = true;
+                    break;
+                }
+                mStats->addOutputTime();
+                onOutputAvailable(mCodec, outIdx, &info);
+            } else if (outIdx == AMEDIACODEC_INFO_OUTPUT_FORMAT_CHANGED) {
+                mFormat = AMediaCodec_getOutputFormat(mCodec);
+                _tryAgainCount = 0;
+                ALOGD("Output format changed: %s", AMediaFormat_toString(mFormat));
+            } else if (outIdx == AMEDIACODEC_INFO_OUTPUT_BUFFERS_CHANGED) {
+                ALOGD("Output buffers changed.");
+            } else if (outIdx == AMEDIACODEC_INFO_TRY_AGAIN_LATER) {
+                ALOGD("Try again later. tryagaincnt = %d.", _tryAgainCount);
+                _tryAgainCount++;
+                if (_tryAgainCount > 40) {
+                    ALOGE("Try again 40 times continously. consider it failed.");
+                    return outIdx;
+                }
+            } else {
+                ALOGD("dequeue output buffer got unexpected info code %zd", outIdx);
+            }
+        }
     }
     return AMEDIA_OK;
 }
@@ -259,6 +207,4 @@ void Decoder::dumpStatistics(string inputReference, string componentName, string
 
 void Decoder::resetDecoder() {
     if (mStats) mStats->reset();
-    if (mInputBuffer) mInputBuffer = nullptr;
-    if (!mFrameMetaData.empty()) mFrameMetaData.clear();
 }

@@ -7,8 +7,8 @@
 
 TensorProducer::TensorProducer(TensorConsumer* c) {
     // init
-    _buffer = nullptr;
     _decoder = nullptr;
+    _video_track_idx = -1;
     _consumer = c;
     _batch_size = c->getBatchSize();
 
@@ -38,13 +38,6 @@ TensorProducer::TensorProducer(TensorConsumer* c) {
         return;
     }
 
-    // allocate video buffer
-    _buffer = (uint8_t *) malloc(fileSize);
-    if (!_buffer) {
-        ALOGE("Insufficient memory");
-        return;
-    }
-
     // load frames into buffer
     for (int curTrack = 0; curTrack < trackCount; curTrack++) {
         // get track format
@@ -54,33 +47,24 @@ TensorProducer::TensorProducer(TensorConsumer* c) {
             return;
         }
 
-        // skip audio track
+        // find video track
         AMediaFormat *format = extractor->getFormat();
         const char *mimeType = nullptr;
         AMediaFormat_getString(format, AMEDIAFORMAT_KEY_MIME, &mimeType);
-        if (!strncmp(mimeType, "audio/", 6)) {
-            ALOGD("can not decode audio now, skip audio track");
-            continue;
+        if (!strncmp(mimeType, "video/", 6)) {
+            _video_track_idx = curTrack;
+            break;
         }
+    }
 
-        // Get frame data
-        AMediaCodecBufferInfo info;
-        uint32_t inputBufferOffset = 0;
-        while (true) {
-            status = extractor->getFrameSample(info);
-            if (status || !info.size) break;
-            // copy the meta data and buffer to be passed to decoder
-            if (inputBufferOffset + info.size > fileSize) {
-                ALOGE("Memory allocated not sufficient");
-                return;
-            }
-            memcpy(_buffer + inputBufferOffset, extractor->getFrameBuf(), info.size);
-            _frame_infos.push_back(info);
-            inputBufferOffset += info.size;
+    // if not found video
+    if(_video_track_idx == -1) {
+        ALOGD("no video track found! can not decode");
+        if (_decoder) {
+            _decoder->getExtractor()->deInitExtractor();
+            delete _decoder;
+            _decoder = nullptr;
         }
-
-        // video data is read, so no need continue, we only read one video track
-        break;
     }
 }
 
@@ -94,10 +78,6 @@ TensorProducer::~TensorProducer() {
     }
 
     // release
-    if (_buffer) {
-        free(_buffer);
-        _buffer = nullptr;
-    }
     if (_decoder) {
         _decoder->getExtractor()->deInitExtractor();
         delete _decoder;
@@ -213,27 +193,29 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
 }
 
 void TensorProducer::loop() {
-    // setup decoder
-    RewooDecoderCallback cb{
-            nullptr,
-            ::onOutputAvailable,
-            nullptr,
-            nullptr
-    };
-    _decoder->setupDecoder();
-    _decoder->setCallback(&cb, this);
+    if(_video_track_idx >= 0) {
+        // setup decoder
+        RewooDecoderCallback cb{
+                nullptr,
+                ::onOutputAvailable,
+                nullptr,
+                nullptr
+        };
+        _decoder->setupDecoder();
+        _decoder->setCallback(&cb, this);
 
-    // decode loop
-    _decoder->decode(_buffer, _frame_infos, g_video_codec, false);
+        // decode loop
+        _decoder->decode(g_video_codec);
 
-    // last batch
-    if(!_pending_batch.empty()) {
+        // last batch
+        if(!_pending_batch.empty()) {
+            _consumer->push(_pending_batch);
+        }
+
+        // empty batch means no more
+        _pending_batch = std::vector<std::vector<float>>();
         _consumer->push(_pending_batch);
     }
-
-    // empty batch means no more
-    _pending_batch = std::vector<std::vector<float>>();
-    _consumer->push(_pending_batch);
 
     // set flag
     g_decode_done = true;

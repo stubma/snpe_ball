@@ -88,9 +88,7 @@ class Decoder : public CallBackHandle {
           mNumOutputFrame(0),
           mSawInputEOS(false),
           mSawOutputEOS(false),
-          mSignalledError(false),
           mErrorCode(AMEDIA_OK),
-          mInputBuffer(nullptr),
           _cb(nullptr),
           _cbUserData(nullptr) {
         mExtractor = new Extractor();
@@ -128,8 +126,7 @@ class Decoder : public CallBackHandle {
                            AMediaCodecBufferInfo *bufferInfo) override;
 
     // Process the frames and give decoded output
-    int32_t decode(uint8_t *inputBuffer, vector<AMediaCodecBufferInfo> &frameInfo,
-                   string &codecName, bool asyncMode);
+    int32_t decode(string &codecName);
 
     void dumpStatistics(string inputReference, string componentName = "", string mode = "",
                         string statsFile = "");
@@ -147,16 +144,8 @@ class Decoder : public CallBackHandle {
 
     bool mSawInputEOS;
     bool mSawOutputEOS;
-    bool mSignalledError;
     media_status_t mErrorCode;
-
-    int32_t mOffset;
-    uint8_t *mInputBuffer;
-    vector<AMediaCodecBufferInfo> mFrameMetaData;
-
-    /* Asynchronous locks */
-    mutex mMutex;
-    condition_variable mDecoderDoneCondition;
+    int32_t _tryAgainCount;
 };
 
 // Read input samples

@@ -28,7 +28,6 @@ class Extractor {
         : mFormat(nullptr),
           mExtractor(nullptr),
           mStats(nullptr),
-          mFrameBuf{nullptr},
           mDurationUs{0} {}
 
     ~Extractor() {
@@ -41,9 +40,7 @@ class Extractor {
 
     void *getCSDSample(AMediaCodecBufferInfo &frameInfo, int32_t csdIndex);
 
-    int32_t getFrameSample(AMediaCodecBufferInfo &frameInfo);
-
-    int32_t extract(int32_t trackId);
+    int32_t getFrameSample(AMediaCodecBufferInfo &frameInfo, uint8_t* input, size_t bufSize);
 
     void dumpStatistics(string inputReference, string componentName = "", string statsFile = "");
 
@@ -51,16 +48,12 @@ class Extractor {
 
     AMediaFormat *getFormat() { return mFormat; }
 
-    uint8_t *getFrameBuf() { return mFrameBuf; }
-
     int64_t getClipDuration() { return mDurationUs; }
 
   private:
     AMediaFormat *mFormat;
     AMediaExtractor *mExtractor;
     Stats *mStats;
-    uint8_t *mFrameBuf;
-    size_t _frameBufSize;
     int64_t mDurationUs;
 };
 

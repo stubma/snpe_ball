@@ -24,10 +24,9 @@ private:
     TensorConsumer* _consumer;
     Decoder* _decoder;
     FILE* _video_fp;
-    uint8_t* _buffer;
-    std::vector<AMediaCodecBufferInfo> _frame_infos;
     int32_t _batch_size;
     std::vector<std::vector<float>> _pending_batch;
+    int32_t _video_track_idx;
 
     std::thread _t;
 

@@ -24,10 +24,6 @@
 int32_t Extractor::initExtractor(int32_t fd, size_t fileSize) {
     mStats = new Stats();
 
-    _frameBufSize = fileSize;
-    mFrameBuf = (uint8_t *)calloc(fileSize, sizeof(uint8_t));
-    if (!mFrameBuf) return -1;
-
     int64_t sTime = mStats->getCurTime();
 
     mExtractor = AMediaExtractor_new();
@@ -58,8 +54,8 @@ void *Extractor::getCSDSample(AMediaCodecBufferInfo &frameInfo, int32_t csdIndex
     return csdBuffer;
 }
 
-int32_t Extractor::getFrameSample(AMediaCodecBufferInfo &frameInfo) {
-    int32_t size = AMediaExtractor_readSampleData(mExtractor, mFrameBuf, _frameBufSize);
+int32_t Extractor::getFrameSample(AMediaCodecBufferInfo &frameInfo, uint8_t* input, size_t bufSize) {
+    int32_t size = AMediaExtractor_readSampleData(mExtractor, input, bufSize);
     if (size < 0) return -1;
 
     frameInfo.flags = AMediaExtractor_getSampleFlags(mExtractor);
@@ -82,47 +78,12 @@ int32_t Extractor::setupTrackFormat(int32_t trackId) {
     return AMEDIA_OK;
 }
 
-int32_t Extractor::extract(int32_t trackId) {
-    int32_t status = setupTrackFormat(trackId);
-    if (status != AMEDIA_OK) return status;
-
-    int32_t idx = 0;
-    AMediaCodecBufferInfo frameInfo;
-    while (1) {
-        memset(&frameInfo, 0, sizeof(AMediaCodecBufferInfo));
-        void *csdBuffer = getCSDSample(frameInfo, idx);
-        if (!csdBuffer || !frameInfo.size) break;
-        idx++;
-    }
-
-    mStats->setStartTime();
-    while (1) {
-        int32_t status = getFrameSample(frameInfo);
-        if (status || !frameInfo.size) break;
-        mStats->addOutputTime();
-    }
-
-    if (mFormat) {
-        AMediaFormat_delete(mFormat);
-        mFormat = nullptr;
-    }
-
-    AMediaExtractor_unselectTrack(mExtractor, trackId);
-
-    return AMEDIA_OK;
-}
-
 void Extractor::dumpStatistics(string inputReference, string componentName, string statsFile) {
     string operation = "extract";
     mStats->dumpStatistics(operation, inputReference, mDurationUs, componentName, "", statsFile);
 }
 
 void Extractor::deInitExtractor() {
-    if (mFrameBuf) {
-        free(mFrameBuf);
-        mFrameBuf = nullptr;
-    }
-
     int64_t sTime = mStats->getCurTime();
     if (mExtractor) {
         AMediaExtractor_delete(mExtractor);
