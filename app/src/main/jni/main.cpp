@@ -10,15 +10,9 @@
 #include "param.h"
 
 static const int ARG_VERSION = 'v';
-static const int ARG_DSP_LIB_DIR = 'l';
-static const int ARG_HELP = 'h';
-static const int ARG_DUMP_FORMAT = 'd';
-static const char short_options[] = "d:hl:v";
+static const char short_options[] = "v";
 static const struct option long_options[] = {
         {"version", no_argument, NULL, ARG_VERSION},
-        {"dsp_library_path", required_argument, NULL, ARG_DSP_LIB_DIR},
-        {"help", no_argument, NULL, ARG_HELP},
-        {"dump", required_argument, NULL, ARG_DUMP_FORMAT},
         {0, 0, 0, 0}
 };
 
@@ -30,21 +24,6 @@ static void print_version() {
            CV_VERSION);
 }
 
-static void print_usage(int argc, char *argv[]) {
-    fprintf(stdout,
-            "Usage: %s [options]\n"
-            "Version %s\n"
-            "Options:\n"
-            "-d | --dump [yuv|jpg]\t\tdump frame in specified format, can be yuv or jpg\n"
-            "-h | --help\t\t\tprint help\n"
-            "-l | --dsp_library_path\t\tset ADSP_LIBRARY_PATH environment, default is /vendor/lib\n"
-            "-v | --version\t\t\tprint version \n"
-            "--vw | --video_width\t\tspecify video width\n"
-            "--vh | --video_height\t\tspecify video height\n"
-            "\n",
-            argv[0], "v1.0.0");
-}
-
 static void process_opt(int argc, char *argv[]) {
     for (;;) {
         int idx;
@@ -52,30 +31,9 @@ static void process_opt(int argc, char *argv[]) {
         if (-1 == c)
             break;
         switch (c) {
-            case ARG_DUMP_FORMAT:
-                if (!strcmp(optarg, "yuv")) {
-                    g_dump_file_type = REWOO_DUMP_YUV;
-                } else if (!strcmp(optarg, "jpg")) {
-                    g_dump_file_type = REWOO_DUMP_JPG;
-                } else if (!strcmp(optarg, "raw")) {
-                    g_dump_file_type = REWOO_DUMP_RAW_RGB;
-                } else {
-                    g_dump_file_type = REWOO_DUMP_NONE;
-                }
-                break;
-            case ARG_HELP:
-                print_usage(argc, argv);
-                exit(EXIT_SUCCESS);
             case ARG_VERSION:
                 print_version();
                 exit(EXIT_SUCCESS);
-            case ARG_DSP_LIB_DIR:
-                g_dsp_lib_dir = optarg;
-                if (!starts_with(g_dsp_lib_dir, "/")) {
-                    g_dsp_lib_dir = g_cwd + "/" + g_dsp_lib_dir;
-                }
-                setenv(DSP_ENV_VAR, g_dsp_lib_dir.c_str(), true);
-                break;
             default:
                 break;
         }
