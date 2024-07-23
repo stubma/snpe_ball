@@ -8,7 +8,6 @@
 #include "log.h"
 #include "utils.h"
 #include <opencv2/opencv.hpp>
-#include <opencv2/core.hpp>
 
 TensorConsumer::TensorConsumer() {
     _quit = false;
@@ -146,6 +145,8 @@ std::vector<Point> TensorConsumer::detectNet(std::vector<float>& raw) {
         }
     }
     cv::Mat pred_index;
+    cv::reduceArgMax(heatmap, pred_index, 1);
+    ALOGD("pred index values: %zd", pred_index.total());
 
     // return
     return ret;
