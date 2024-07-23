@@ -6,7 +6,7 @@
 #include "tensor_consumer.h"
 #include <sys/stat.h>
 
-TensorProducer::TensorProducer(TensorConsumer* c) {
+TensorProducer::TensorProducer(TensorConsumer *c) {
     // init
     _decoder = nullptr;
     _video_track_idx = -1;
@@ -59,7 +59,7 @@ TensorProducer::TensorProducer(TensorConsumer* c) {
     }
 
     // if not found video
-    if(_video_track_idx == -1) {
+    if (_video_track_idx == -1) {
         ALOGD("no video track found! can not decode");
         if (_decoder) {
             _decoder->getExtractor()->deInitExtractor();
@@ -114,13 +114,56 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
     size_t bufSize;
     uint8_t *buf = AMediaCodec_getOutputBuffer(codec, index, &bufSize);
     if (buf && bufferInfo->size > 0) {
+        // get frame num, from 1
+        char path[512] = {0};
+        int frameNum = _decoder->getOuputFrameNum();
+
         // convert yuv to rgb
-        cv::Mat matSrc = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
-        cv::Mat matDst = cv::Mat(g_video_height, g_video_width, CV_8UC3);
-        cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
+        cv::Mat matYuv = cv::Mat(g_video_height * 1.5, g_video_width, CV_8UC1, buf);
+        cv::Mat matRgb = cv::Mat(g_video_height, g_video_width, CV_8UC3);
+        cv::cvtColor(matYuv, matRgb, cv::COLOR_YUV2RGB_NV21);
+
+        // for first frame, we detect goal net position
+        if (frameNum == 1) {
+            ALOGD("at first frame, we will detect goal net positions");
+
+            // create scale matrix
+            SNPEMeta &meta = _consumer->getNetMeta();
+            float scale = std::min((float) meta.input_width / g_video_width,
+                                   (float) meta.input_height / g_video_height);
+            float i2dData[6] = {
+                    scale, 0, (-scale * g_video_width + meta.input_width + scale - 1) * 0.5f,
+                    0, scale, (-scale * g_video_height + meta.input_height + scale - 1) * 0.5f
+            };
+            cv::Mat i2d(2, 3, CV_32F, i2dData);
+            cv::Mat d2i(2, 3, CV_32F);
+            cv::Mat imgScaled(meta.input_height, meta.input_width, CV_8UC3);
+            cv::Mat normalizedImg;
+            cv::invertAffineTransform(i2d, d2i);
+
+            // scale image
+            cv::warpAffine(matRgb, imgScaled, i2d, {meta.input_width, meta.input_height});
+
+            // normalize image
+            imgScaled.convertTo(normalizedImg, CV_32F, 1 / 255.0);
+
+            // write interleaved data in planar format
+            std::vector<float> raw(meta.input_width * meta.input_height * meta.channels);
+            memcpy_ex(raw.data(), normalizedImg.data, sizeof(float32_t), normalizedImg.total(),
+                      0, normalizedImg.elemSize());
+            memcpy_ex(raw.data() + normalizedImg.total(), normalizedImg.data, sizeof(float32_t),
+                      normalizedImg.total(),
+                      sizeof(float32_t), normalizedImg.elemSize());
+            memcpy_ex(raw.data() + normalizedImg.total() * 2, normalizedImg.data, sizeof(float32_t),
+                      normalizedImg.total(),
+                      sizeof(float32_t) * 2, normalizedImg.elemSize());
+
+            // detect net positions, return a 12 points vector
+            std::vector<Point> netPoints = _consumer->detectNet(raw);
+        }
 
         // crop by goal net position
-        SNPEMeta& meta = _consumer->getGoalMeta();
+        SNPEMeta &meta = _consumer->getGoalMeta();
         int32_t cx1 = (g_goalnet_points[2].x + g_goalnet_points[3].x) / 2;
         int32_t cy1 = (g_goalnet_points[2].y + g_goalnet_points[3].y) / 2;
         int32_t lx = std::min(g_video_width - meta.input_width,
@@ -128,7 +171,7 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
         int32_t ly = std::min(g_video_height - meta.input_height,
                               std::max(0, cy1 - meta.input_height / 2));
         cv::Rect roi(lx, ly, meta.input_width, meta.input_height);
-        cv::Mat crop = matDst(roi);
+        cv::Mat crop = matRgb(roi);
 
         // normalization: convert rgb int to float
         cv::Mat floatCrop;
@@ -138,15 +181,15 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
         std::vector<float> raw(meta.input_width * meta.input_height * meta.channels);
         memcpy_ex(raw.data(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
                   0, floatCrop.elemSize());
-        memcpy_ex(raw.data() + floatCrop.total(), floatCrop.data, sizeof(float32_t), floatCrop.total(),
+        memcpy_ex(raw.data() + floatCrop.total(), floatCrop.data, sizeof(float32_t),
+                  floatCrop.total(),
                   sizeof(float32_t), floatCrop.elemSize());
-        memcpy_ex(raw.data() + floatCrop.total() * 2, floatCrop.data, sizeof(float32_t), floatCrop.total(),
+        memcpy_ex(raw.data() + floatCrop.total() * 2, floatCrop.data, sizeof(float32_t),
+                  floatCrop.total(),
                   sizeof(float32_t) * 2, floatCrop.elemSize());
 
         // dump frame
-        char path[512] = {0};
-        int frameNum = _decoder->getOuputFrameNum();
-        if(g_dump_file_type != REWOO_DUMP_NONE &&
+        if (g_dump_file_type != REWOO_DUMP_NONE &&
             frameNum >= g_dump_from_frame &&
             (g_dump_to_frame == -1 || frameNum <= g_dump_to_frame)) {
             switch (g_dump_file_type) {
@@ -174,7 +217,8 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
                     fwrite(raw.data(), floatCrop.total() * floatCrop.elemSize(), 1, fp);
                     fflush(fp);
                     fclose(fp);
-                    ALOGV("bytes(%lu) written into file %s", floatCrop.total() * floatCrop.elemSize(),
+                    ALOGV("bytes(%lu) written into file %s",
+                          floatCrop.total() * floatCrop.elemSize(),
                           path);
                     break;
                 }
@@ -184,7 +228,7 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
         }
 
         // put to queue
-        if(_pending_batch.size() >= _batch_size) {
+        if (_pending_batch.size() >= _batch_size) {
             _consumer->push(_pending_batch);
             _pending_batch = std::vector<std::vector<float>>();
             _pending_batch.push_back(std::move(raw));
@@ -195,7 +239,7 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
 }
 
 void TensorProducer::loop() {
-    if(_video_track_idx >= 0) {
+    if (_video_track_idx >= 0) {
         // setup decoder
         RewooDecoderCallback cb{
                 nullptr,
@@ -210,7 +254,7 @@ void TensorProducer::loop() {
         _decoder->decode(g_video_codec);
 
         // last batch
-        if(!_pending_batch.empty()) {
+        if (!_pending_batch.empty()) {
             _consumer->push(_pending_batch);
         }
 

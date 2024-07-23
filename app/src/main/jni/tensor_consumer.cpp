@@ -7,6 +7,8 @@
 #include "global.h"
 #include "log.h"
 #include "utils.h"
+#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 
 TensorConsumer::TensorConsumer() {
     _quit = false;
@@ -102,6 +104,51 @@ void TensorConsumer::push(std::vector<std::vector<float>> &batch) {
     _batch_queue.push_back(item);
     lock.unlock();
     _cond.notify_one();
+}
+
+std::vector<Point> TensorConsumer::detectNet(std::vector<float>& raw) {
+    std::vector<Point> ret;
+
+    // get input tensor names
+    const auto &ref_input_tensor = _snpe_net->getInputTensorNames();
+    if (!ref_input_tensor) throw std::runtime_error("Error obtaining net model input tensor names");
+    const auto &input_tensor_names = *ref_input_tensor;
+
+    // build tensor
+    std::vector<std::vector<float>> batch;
+    batch.push_back(std::move(raw));
+    std::unique_ptr<DlSystem::ITensor> tensor = loadInputTensor(_snpe_net, batch,
+                                                                input_tensor_names);
+
+    // run network
+    DlSystem::TensorMap output_tensor_map;
+    bool execStatus = _snpe_net->execute(tensor.get(), output_tensor_map);
+
+    // get output tensor
+    const auto &name = _meta_net.output_names.at(0);
+    DlSystem::ITensor *out_tensor = output_tensor_map.getTensor(name);
+
+    // output tensor is [batch,height,width,channel] shape, reshape it to
+    // [channel, width*height]
+    DlSystem::TensorShape& tensor_shape = _meta_net.output_shapes[0];
+    const size_t *dims = tensor_shape.getDimensions();
+    size_t channels = dims[3];
+    size_t output_width = dims[2];
+    size_t output_height = dims[1];
+    cv::Mat heatmap(channels, output_width * output_height, CV_32F);
+    int32_t x = 0, y = 0;
+    for (auto it = out_tensor->begin(); it != out_tensor->end(); it++) {
+        heatmap.at<float>(x, y) = *it;
+        x++;
+        if(x >= channels) {
+            x = 0;
+            y++;
+        }
+    }
+    cv::Mat pred_index;
+
+    // return
+    return ret;
 }
 
 void TensorConsumer::loop() {
