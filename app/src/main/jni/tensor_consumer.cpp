@@ -7,7 +7,6 @@
 #include "global.h"
 #include "log.h"
 #include "utils.h"
-#include <opencv2/opencv.hpp>
 
 TensorConsumer::TensorConsumer() {
     _quit = false;
@@ -105,7 +104,7 @@ void TensorConsumer::push(std::vector<std::vector<float>> &batch) {
     _cond.notify_one();
 }
 
-std::vector<Point> TensorConsumer::detectNet(std::vector<float>& raw) {
+std::vector<Point> TensorConsumer::detectNet(std::vector<float>& raw, cv::Mat& d2i) {
     std::vector<Point> ret;
 
     // get input tensor names
@@ -122,31 +121,51 @@ std::vector<Point> TensorConsumer::detectNet(std::vector<float>& raw) {
     // run network
     DlSystem::TensorMap output_tensor_map;
     bool execStatus = _snpe_net->execute(tensor.get(), output_tensor_map);
+    if (execStatus) {
+        // get output tensor
+        const auto &name = _meta_net.output_names.at(0);
+        DlSystem::ITensor *out_tensor = output_tensor_map.getTensor(name);
 
-    // get output tensor
-    const auto &name = _meta_net.output_names.at(0);
-    DlSystem::ITensor *out_tensor = output_tensor_map.getTensor(name);
-
-    // output tensor is [batch,height,width,channel] shape, reshape it to
-    // [channel, width*height]
-    DlSystem::TensorShape& tensor_shape = _meta_net.output_shapes[0];
-    const size_t *dims = tensor_shape.getDimensions();
-    size_t channels = dims[3];
-    size_t output_width = dims[2];
-    size_t output_height = dims[1];
-    cv::Mat heatmap(channels, output_width * output_height, CV_32F);
-    int32_t x = 0, y = 0;
-    for (auto it = out_tensor->begin(); it != out_tensor->end(); it++) {
-        heatmap.at<float>(x, y) = *it;
-        x++;
-        if(x >= channels) {
-            x = 0;
-            y++;
+        // output tensor is [batch,height,width,channel] shape, reshape it to
+        // [channel, width*height]
+        DlSystem::TensorShape& tensor_shape = _meta_net.output_shapes[0];
+        const size_t *dims = tensor_shape.getDimensions();
+        size_t channels = dims[3];
+        size_t output_width = dims[2];
+        size_t output_height = dims[1];
+        cv::Mat heatmap(channels, output_width * output_height, CV_32F);
+        int32_t r = 0, c = 0;
+        for (auto it = out_tensor->begin(); it != out_tensor->end(); it++) {
+            heatmap.at<float>(r, c) = *it;
+            r++;
+            if(r >= channels) {
+                r = 0;
+                c++;
+            }
         }
+
+//        FILE *fp = fopen("/data/local/tmp/ball_v3/heatmap.raw", "w+");
+//        fwrite(heatmap.data, heatmap.total() * heatmap.elemSize(), 1, fp);
+//        fflush(fp);
+//        fclose(fp);
+
+        // get max point indices
+        cv::Mat pred_index;
+        cv::reduceArgMax(heatmap, pred_index, 1);
+
+        // get points
+        float ratio = _meta_net.input_width / output_width;
+        for(int i = 0; i < pred_index.total(); i++) {
+            ALOGD("pred index value: %d", pred_index.at<int32_t>(i));
+            Point p;
+            p.x = (pred_index.at<int32_t>(i) % output_width) * ratio * d2i.at<float>(0, 0) + d2i.at<float>(0, 2);
+            p.y = pred_index.at<int32_t>(i) / output_width * ratio * d2i.at<float>(1, 1) + d2i.at<float>(1, 2);
+            ret.push_back(p);
+            ALOGD("detected goal net points[%d]: %d, %d", i, p.x, p.y);
+        }
+    } else {
+        ALOGD("net model running - failed to detect net");
     }
-    cv::Mat pred_index;
-    cv::reduceArgMax(heatmap, pred_index, 1);
-    ALOGD("pred index values: %zd", pred_index.total());
 
     // return
     return ret;

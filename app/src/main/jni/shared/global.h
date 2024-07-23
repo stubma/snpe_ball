@@ -10,7 +10,7 @@ typedef enum {
     REWOO_DUMP_RAW_RGB
 } RewooDecodeOutputFileType;
 typedef struct {
-    int x, y;
+    int32_t x, y;
 } Point;
 
 std::string get_dump_type_str(RewooDecodeOutputFileType t);

@@ -9,6 +9,7 @@
 #include <condition_variable>
 #include "utils.h"
 #include "global.h"
+#include <opencv2/opencv.hpp>
 
 class TensorConsumer {
 public:
@@ -18,7 +19,7 @@ public:
     void run();
     void stop();
     void push(std::vector<std::vector<float>>& batch);
-    std::vector<Point> detectNet(std::vector<float>& raw);
+    std::vector<Point> detectNet(std::vector<float>& raw, cv::Mat& d2i);
 
     inline size_t getBatchSize() { return _meta_goal.batch_size; }
     inline SNPEMeta& getGoalMeta() { return _meta_goal; }

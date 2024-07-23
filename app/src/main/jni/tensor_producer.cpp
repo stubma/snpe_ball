@@ -159,7 +159,7 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
                       sizeof(float32_t) * 2, normalizedImg.elemSize());
 
             // detect net positions, return a 12 points vector
-            std::vector<Point> netPoints = _consumer->detectNet(raw);
+            std::vector<Point> netPoints = _consumer->detectNet(raw, d2i);
         }
 
         // crop by goal net position
