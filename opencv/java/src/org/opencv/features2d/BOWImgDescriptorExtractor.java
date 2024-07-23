@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfKeyPoint;
+import org.opencv.features2d.DescriptorMatcher;
+import org.opencv.features2d.Feature2D;
 import org.opencv.utils.Converters;
 
 // C++: class BOWImgDescriptorExtractor
@@ -32,10 +34,35 @@ public class BOWImgDescriptorExtractor {
     public static BOWImgDescriptorExtractor __fromPtr__(long addr) { return new BOWImgDescriptorExtractor(addr); }
 
     //
-    // C++:   cv::BOWImgDescriptorExtractor::BOWImgDescriptorExtractor(Ptr_DescriptorExtractor dextractor, Ptr_DescriptorMatcher dmatcher)
+    // C++:   cv::BOWImgDescriptorExtractor::BOWImgDescriptorExtractor(Ptr_Feature2D dextractor, Ptr_DescriptorMatcher dmatcher)
     //
 
-    // Unknown type 'Ptr_DescriptorExtractor' (I), skipping the function
+    /**
+     * The constructor.
+     *
+     *     @param dextractor Descriptor extractor that is used to compute descriptors for an input image and
+     *     its keypoints.
+     *     @param dmatcher Descriptor matcher that is used to find the nearest word of the trained vocabulary
+     *     for each keypoint descriptor of the image.
+     */
+    public BOWImgDescriptorExtractor(Feature2D dextractor, DescriptorMatcher dmatcher) {
+        nativeObj = BOWImgDescriptorExtractor_0(dextractor.getNativeObjAddr(), dmatcher.getNativeObjAddr());
+    }
+
+
+    //
+    // C++:  void cv::BOWImgDescriptorExtractor::setVocabulary(Mat vocabulary)
+    //
+
+    /**
+     * Sets a visual vocabulary.
+     *
+     *     @param vocabulary Vocabulary (can be trained using the inheritor of BOWTrainer ). Each row of the
+     *     vocabulary is a visual word (cluster center).
+     */
+    public void setVocabulary(Mat vocabulary) {
+        setVocabulary_0(nativeObj, vocabulary.nativeObj);
+    }
 
 
     //
@@ -48,6 +75,24 @@ public class BOWImgDescriptorExtractor {
      */
     public Mat getVocabulary() {
         return new Mat(getVocabulary_0(nativeObj));
+    }
+
+
+    //
+    // C++:  void cv::BOWImgDescriptorExtractor::compute2(Mat image, vector_KeyPoint keypoints, Mat& imgDescriptor)
+    //
+
+    /**
+     *
+     *     @param imgDescriptor Computed output image descriptor.
+     *     pointIdxsOfClusters[i] are keypoint indices that belong to the i -th cluster (word of vocabulary)
+     *     returned if it is non-zero.
+     * @param image automatically generated
+     * @param keypoints automatically generated
+     */
+    public void compute(Mat image, MatOfKeyPoint keypoints, Mat imgDescriptor) {
+        Mat keypoints_mat = keypoints;
+        compute_0(nativeObj, image.nativeObj, keypoints_mat.nativeObj, imgDescriptor.nativeObj);
     }
 
 
@@ -77,39 +122,6 @@ public class BOWImgDescriptorExtractor {
     }
 
 
-    //
-    // C++:  void cv::BOWImgDescriptorExtractor::compute2(Mat image, vector_KeyPoint keypoints, Mat& imgDescriptor)
-    //
-
-    /**
-     *
-     *     @param imgDescriptor Computed output image descriptor.
-     *     pointIdxsOfClusters[i] are keypoint indices that belong to the i -th cluster (word of vocabulary)
-     *     returned if it is non-zero.
-     * @param image automatically generated
-     * @param keypoints automatically generated
-     */
-    public void compute(Mat image, MatOfKeyPoint keypoints, Mat imgDescriptor) {
-        Mat keypoints_mat = keypoints;
-        compute_0(nativeObj, image.nativeObj, keypoints_mat.nativeObj, imgDescriptor.nativeObj);
-    }
-
-
-    //
-    // C++:  void cv::BOWImgDescriptorExtractor::setVocabulary(Mat vocabulary)
-    //
-
-    /**
-     * Sets a visual vocabulary.
-     *
-     *     @param vocabulary Vocabulary (can be trained using the inheritor of BOWTrainer ). Each row of the
-     *     vocabulary is a visual word (cluster center).
-     */
-    public void setVocabulary(Mat vocabulary) {
-        setVocabulary_0(nativeObj, vocabulary.nativeObj);
-    }
-
-
     @Override
     protected void finalize() throws Throwable {
         delete(nativeObj);
@@ -117,20 +129,23 @@ public class BOWImgDescriptorExtractor {
 
 
 
+    // C++:   cv::BOWImgDescriptorExtractor::BOWImgDescriptorExtractor(Ptr_Feature2D dextractor, Ptr_DescriptorMatcher dmatcher)
+    private static native long BOWImgDescriptorExtractor_0(long dextractor_nativeObj, long dmatcher_nativeObj);
+
+    // C++:  void cv::BOWImgDescriptorExtractor::setVocabulary(Mat vocabulary)
+    private static native void setVocabulary_0(long nativeObj, long vocabulary_nativeObj);
+
     // C++:  Mat cv::BOWImgDescriptorExtractor::getVocabulary()
     private static native long getVocabulary_0(long nativeObj);
+
+    // C++:  void cv::BOWImgDescriptorExtractor::compute2(Mat image, vector_KeyPoint keypoints, Mat& imgDescriptor)
+    private static native void compute_0(long nativeObj, long image_nativeObj, long keypoints_mat_nativeObj, long imgDescriptor_nativeObj);
 
     // C++:  int cv::BOWImgDescriptorExtractor::descriptorSize()
     private static native int descriptorSize_0(long nativeObj);
 
     // C++:  int cv::BOWImgDescriptorExtractor::descriptorType()
     private static native int descriptorType_0(long nativeObj);
-
-    // C++:  void cv::BOWImgDescriptorExtractor::compute2(Mat image, vector_KeyPoint keypoints, Mat& imgDescriptor)
-    private static native void compute_0(long nativeObj, long image_nativeObj, long keypoints_mat_nativeObj, long imgDescriptor_nativeObj);
-
-    // C++:  void cv::BOWImgDescriptorExtractor::setVocabulary(Mat vocabulary)
-    private static native void setVocabulary_0(long nativeObj, long vocabulary_nativeObj);
 
     // native support for java finalize()
     private static native void delete(long nativeObj);
