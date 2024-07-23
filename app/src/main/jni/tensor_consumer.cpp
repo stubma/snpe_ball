@@ -29,12 +29,20 @@ TensorConsumer::TensorConsumer() {
     }
 
     // load container
-    std::unique_ptr<DlContainer::IDlContainer> container = loadContainerFromFile(g_dlc_path);
-    if (container == nullptr) {
-        ALOGD("failed to load container, can not proceed");
+    std::unique_ptr<DlContainer::IDlContainer> goalContainer = loadContainerFromFile(
+            g_goal_dlc_path);
+    if (goalContainer == nullptr) {
+        ALOGD("failed to load goal container, can not proceed");
         return;
     } else {
-        ALOGD("container loaded: %p", container.get());
+        ALOGD("goal container loaded, optimizing for runtime...");
+    }
+    std::unique_ptr<DlContainer::IDlContainer> netContainer = loadContainerFromFile(g_net_dlc_path);
+    if (netContainer == nullptr) {
+        ALOGD("failed to load net container, can not proceed");
+        return;
+    } else {
+        ALOGD("net container loaded, optimizing for runtime...");
     }
 
     // set builder
@@ -42,34 +50,43 @@ TensorConsumer::TensorConsumer() {
     runtimeList.add(runtime);
     DlSystem::PlatformConfig platformConfig;
     bool usingInitCaching = true;
-    _snpe = setBuilderOptions(container, runtime, runtimeList,
-                             false, platformConfig,
-                             usingInitCaching);
+    _snpe_goal = setBuilderOptions(goalContainer, runtime, runtimeList,
+                                   false, platformConfig,
+                                   usingInitCaching);
+    _snpe_net = setBuilderOptions(netContainer, runtime, runtimeList,
+                                  false, platformConfig,
+                                  usingInitCaching);
 
     // if caching enabled, save container
     if (usingInitCaching) {
-        if (container->save(g_dlc_path)) {
-            ALOGD("Saved container into archive successfully");
+        if (goalContainer->save(g_goal_dlc_path)) {
+            ALOGD("Saved goal container into archive successfully");
+        }
+        if (netContainer->save(g_net_dlc_path)) {
+            ALOGD("Saved net container into archive successfully");
         }
     }
 
-    // Check the batch size for the container
-    // SNPE 1.16.0 (and newer) assumes the first dimension of the tensor shape
-    // is the batch size.
-    dumpModel(_snpe, _meta);
-    ALOGD("model meta fetched: input image resolution: %dx%d, channels: %d", _meta.input_width, _meta.input_height, _meta.channels);
+    // get model metadata
+    ALOGD("dump goal model metadata start ======>");
+    dumpModel(_snpe_goal, _meta_goal);
+    ALOGD("dump goal model metadata end   <======");
+    ALOGD("dump net model metadata start  ======>");
+    dumpModel(_snpe_net, _meta_net);
+    ALOGD("dump net model metadata end    <======");
 }
 
 TensorConsumer::~TensorConsumer() {
     stop();
-    _snpe.reset();
+    _snpe_goal.reset();
+    _snpe_net.reset();
 }
 
 void TensorConsumer::run() {
     _t = std::thread(
-        [this] {
-            loop();
-        }
+            [this] {
+                loop();
+            }
     );
 }
 
@@ -78,7 +95,7 @@ void TensorConsumer::stop() {
     _t.detach();
 }
 
-void TensorConsumer::push(std::vector<std::vector<float>>& batch) {
+void TensorConsumer::push(std::vector<std::vector<float>> &batch) {
     std::unique_lock<std::mutex> lock(_mutex);
     std::vector<std::vector<float>> item;
     item.insert(item.begin(), batch.begin(), batch.end());
@@ -89,7 +106,7 @@ void TensorConsumer::push(std::vector<std::vector<float>>& batch) {
 
 void TensorConsumer::loop() {
     // get input tensor names
-    const auto &ref_input_tensor = _snpe->getInputTensorNames();
+    const auto &ref_input_tensor = _snpe_goal->getInputTensorNames();
     if (!ref_input_tensor) throw std::runtime_error("Error obtaining Input tensor names");
     const auto &input_tensor_names = *ref_input_tensor;
 
@@ -99,57 +116,59 @@ void TensorConsumer::loop() {
     size_t batch_num = 0;
 
     // network loop
-    while(true) {
+    while (true) {
         // wait batch
         std::unique_lock<std::mutex> lock(_mutex);
-        while(_batch_queue.empty() && !_quit) {
+        while (_batch_queue.empty() && !_quit) {
             _cond.wait(lock);
         }
-        if(_quit) break;
+        if (_quit) break;
 
         // pop first batch
-        std::vector<std::vector<float>>& batch = _batch_queue.front();
+        std::vector<std::vector<float>> &batch = _batch_queue.front();
         lock.unlock();
 
         // empty batch means no more
-        if(batch.empty()) break;
+        if (batch.empty()) break;
 
         // statistics
         total_frame += batch.size();
         batch_num++;
 
         // build tensor
-        std::unique_ptr<DlSystem::ITensor> tensor = loadInputTensor(_snpe, batch, input_tensor_names);
+        std::unique_ptr<DlSystem::ITensor> tensor = loadInputTensor(_snpe_goal, batch,
+                                                                    input_tensor_names);
 
         // execute this batch
         DlSystem::TensorMap output_tensor_map;
         const auto start = std::chrono::high_resolution_clock::now();
-        bool execStatus = _snpe->execute(tensor.get(), output_tensor_map);
+        bool execStatus = _snpe_goal->execute(tensor.get(), output_tensor_map);
         const auto end = std::chrono::high_resolution_clock::now();
         const std::chrono::milliseconds cost = std::chrono::duration_cast<std::chrono::milliseconds>(
                 end - start);
         network_cost += cost;
 
         // check result
-        if(execStatus) {
-            ALOGD("model running - batch %lu, frames: %lu, cost: %lldms(average: %lldms)",
-                  batch_num, total_frame, network_cost.count(), (network_cost.count() / total_frame));
+        if (execStatus) {
+            ALOGD("goal model running - batch %lu, frames: %lu, cost: %lldms(average: %lldms)",
+                  batch_num, total_frame, network_cost.count(),
+                  (network_cost.count() / total_frame));
 
             // print output
-            int size = _meta.output_names.size();
-            for(int i = 0; i < size; i++) {
-                const auto& name = _meta.output_names.at(i);
-                DlSystem::ITensor* out_tensor = output_tensor_map.getTensor(name);
+            int size = _meta_goal.output_names.size();
+            for (int i = 0; i < size; i++) {
+                const auto &name = _meta_goal.output_names.at(i);
+                DlSystem::ITensor *out_tensor = output_tensor_map.getTensor(name);
 
                 // print tensor
                 printf("result tensor(%s): ", name);
-                for(auto it = out_tensor->begin(); it != out_tensor->end(); it++) {
+                for (auto it = out_tensor->begin(); it != out_tensor->end(); it++) {
                     printf("%f, ", *it);
                 }
                 printf("\n");
             }
         } else {
-            ALOGD("model running - failed for batch %lu", batch_num);
+            ALOGD("goal model running - failed for batch %lu", batch_num);
         }
 
         // pop front

@@ -55,9 +55,13 @@ static void loadConfig() {
     if (!starts_with(g_dsp_lib_dir, "/")) {
         g_dsp_lib_dir = g_cwd + "/" + g_dsp_lib_dir;
     }
-    g_dlc_path = rk_param_get_string("snpe:model_path", "");
-    if (!starts_with(g_dlc_path, "/")) {
-        g_dlc_path = g_cwd + "/" + g_dlc_path;
+    g_goal_dlc_path = rk_param_get_string("snpe:goal_model_path", "");
+    if (!starts_with(g_goal_dlc_path, "/")) {
+        g_goal_dlc_path = g_cwd + "/" + g_goal_dlc_path;
+    }
+    g_net_dlc_path = rk_param_get_string("snpe:net_model_path", "");
+    if (!starts_with(g_net_dlc_path, "/")) {
+        g_net_dlc_path = g_cwd + "/" + g_net_dlc_path;
     }
     g_video_path = rk_param_get_string("input:video_path", "");
     if (!starts_with(g_video_path, "/")) {
@@ -98,7 +102,7 @@ static void loadConfig() {
 static void dumpConfig() {
     ALOGD("======== dump configuration start ========>");
     ALOGD("dsp library path: %s", g_dsp_lib_dir.c_str());
-    ALOGD("model path: %s", g_dlc_path.c_str());
+    ALOGD("model path: %s", g_goal_dlc_path.c_str());
     ALOGD("input video path: %s, resolution: %dx%d", g_video_path.c_str(), g_video_width, g_video_height);
     ALOGD("input video codec: %s", g_video_codec.c_str());
     ALOGD("video left goalnet points: (%d, %d) - (%d, %d) - (%d, %d) - (%d, %d)",
@@ -141,8 +145,12 @@ int main(int argc, char *argv[]) {
     }
 
     // check dlc path
-    if(!is_file_exists(g_dlc_path)) {
-        ALOGD("model file %s doesn't not exist", g_dlc_path.c_str());
+    if(!is_file_exists(g_goal_dlc_path)) {
+        ALOGD("goal model file %s doesn't not exist", g_goal_dlc_path.c_str());
+        return EXIT_FAILURE;
+    }
+    if(!is_file_exists(g_net_dlc_path)) {
+        ALOGD("net model file %s doesn't not exist", g_net_dlc_path.c_str());
         return EXIT_FAILURE;
     }
 
@@ -153,7 +161,7 @@ int main(int argc, char *argv[]) {
 
     // 如果指定了模型路径, 则进入模型运行逻辑
     // 如果没有指定模型路径, 则进入视频解码测试逻辑
-    if (!g_dlc_path.empty()) {
+    if (!g_goal_dlc_path.empty()) {
         // run consumer
         TensorConsumer c;
 

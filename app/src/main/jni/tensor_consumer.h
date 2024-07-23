@@ -18,12 +18,15 @@ public:
     void stop();
     void push(std::vector<std::vector<float>>& batch);
 
-    inline size_t getBatchSize() { return _meta.batch_size; }
-    inline SNPEMeta& getMeta() { return _meta; }
+    inline size_t getBatchSize() { return _meta_goal.batch_size; }
+    inline SNPEMeta& getGoalMeta() { return _meta_goal; }
+    inline SNPEMeta& getNetMeta() { return _meta_net; }
 
 private:
-    std::unique_ptr<SNPE::SNPE> _snpe;
-    SNPEMeta _meta;
+    std::unique_ptr<SNPE::SNPE> _snpe_goal;
+    std::unique_ptr<SNPE::SNPE> _snpe_net;
+    SNPEMeta _meta_goal;
+    SNPEMeta _meta_net;
     std::deque<std::vector<std::vector<float>>> _batch_queue;
 
     std::thread _t;

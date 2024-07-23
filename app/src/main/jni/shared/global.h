@@ -40,7 +40,8 @@ extern std::string g_video_codec;
 extern std::vector<Point> g_goalnet_points;
 
 // 模型路径
-extern std::string g_dlc_path;
+extern std::string g_goal_dlc_path;
+extern std::string g_net_dlc_path;
 
 // 全局标志
 extern bool g_decode_done;

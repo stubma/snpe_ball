@@ -120,7 +120,7 @@ void TensorProducer::onOutputAvailable(AMediaCodec *codec,
         cv::cvtColor(matSrc, matDst, cv::COLOR_YUV2RGB_NV21);
 
         // crop by goal net position
-        SNPEMeta& meta = _consumer->getMeta();
+        SNPEMeta& meta = _consumer->getGoalMeta();
         int32_t cx1 = (g_goalnet_points[2].x + g_goalnet_points[3].x) / 2;
         int32_t cy1 = (g_goalnet_points[2].y + g_goalnet_points[3].y) / 2;
         int32_t lx = std::min(g_video_width - meta.input_width,
