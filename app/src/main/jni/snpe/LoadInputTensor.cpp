@@ -70,7 +70,7 @@ std::unique_ptr<DlSystem::ITensor> loadInputTensor(std::unique_ptr<SNPE::SNPE> &
     // Make sure the network requires only a single input
     assert(inputTensorNames.size() == 1);
 
-    // If the network has a single input, each line represents the input file to be loaded for that input
+    // serial raw list
     std::vector<float> inputVec;
     for (auto &raw: rawList) {
         inputVec.insert(inputVec.end(), raw.begin(), raw.end());
