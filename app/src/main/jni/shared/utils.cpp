@@ -208,3 +208,26 @@ std::string remove_last_path_component(std::string p) {
         }
     }
 }
+
+uint8_t* load_raw_from_file(std::string path, size_t* len) {
+    *len = 0;
+    FILE* f = fopen(path.c_str(), "rb");
+    if(!f) return nullptr;
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    uint8_t* buf = (uint8_t*)malloc(fsize);
+    fread(buf, fsize, 1, f);
+    fclose(f);
+    *len = fsize;
+    return buf;
+}
+
+std::vector<float> load_float_array_from_file(std::string path) {
+    size_t len;
+    uint8_t* buf = load_raw_from_file(path, &len);
+    std::vector<float> ret((len + 3) / 4);
+    memcpy(ret.data(), buf, len);
+    free(buf);
+    return ret;
+}

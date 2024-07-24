@@ -22,6 +22,8 @@ typedef struct {
 bool starts_with(std::string src, std::string sub);
 bool is_file_exists(std::string path);
 bool is_directory(std::string path);
+uint8_t* load_raw_from_file(std::string path, size_t* len);
+std::vector<float> load_float_array_from_file(std::string path);
 void mkdirs(const char* buf);
 DlSystem::Runtime_t checkRuntime();
 std::string getRuntimeStr();
