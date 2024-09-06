@@ -106,7 +106,7 @@ android {
         minSdk 33
         targetSdk 33
         buildToolsVersion = "35.0.0"
-        ndkVersion '27.0.11902837'
+        ndkVersion '27.1.12297006'
         versionCode openCVersionCode
         versionName openCVersionName
 
